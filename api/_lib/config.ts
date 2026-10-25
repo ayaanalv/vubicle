@@ -11,7 +11,13 @@ export function config(env: NodeJS.ProcessEnv = process.env) {
     redisUrl: env.UPSTASH_REDIS_REST_URL || '',
     redisToken: env.UPSTASH_REDIS_REST_TOKEN || '',
     hourlyCap: Number(env.HOURLY_CAP) || 60,
-    allowedOrigins: list(env.ALLOWED_ORIGINS, 'https://vubicle.com,https://www.vubicle.com'),
+    // Vercel preview deployments get their own URL; allow it so previews can be tested.
+    allowedOrigins: [
+      ...list(env.ALLOWED_ORIGINS, 'https://vubicle.com,https://www.vubicle.com'),
+      ...[env.VERCEL_URL, env.VERCEL_BRANCH_URL, env.VERCEL_PROJECT_PRODUCTION_URL].filter(Boolean).map((h) => `https://${h}`),
+    ],
+    geminiThinking: env.GEMINI_THINKING ?? 'low',
+    ipSalt: env.IP_SALT || '',
     production: env.VERCEL_ENV === 'production',
   };
 }
