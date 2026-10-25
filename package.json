@@ -14,6 +14,8 @@
     "art": "node scripts/optimize-art.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@fontsource-variable/fredoka": "^5.3.0",
     "@upstash/redis": "^1.39.0",
     "fflate": "^0.8.3",
     "pdfjs-dist": "^6.4.299",

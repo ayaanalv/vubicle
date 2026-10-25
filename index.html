@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vubicle: a study workspace for your own course material</title>
+    <meta
+      name="description"
+      content="Drop in your slides, readings and notes. Study with AI that answers only from them and shows the page it came from. Free, no account."
+    />
+    <meta name="theme-color" content="#0e0c1d" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" as="image" type="image/avif" href="/art/hero-1280.avif"
+      imagesrcset="/art/hero-640.avif 640w, /art/hero-1280.avif 1280w, /art/hero-2000.avif 2000w" imagesizes="100vw" />
+    <meta property="og:title" content="Vubicle" />
+    <meta property="og:description" content="A virtual cubicle for each course. AI study tools that answer from your material, with citations." />
+    <meta property="og:image" content="/art/hero-1280.webp" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="bar">
+      <a class="wordmark" href="/" aria-label="Vubicle home">vubicle</a>
+      <nav aria-label="Page">
+        <a href="#how">How it works</a>
+        <a href="#tools">Tools</a>
+        <a href="#questions">Privacy</a>
+      </nav>
+      <a class="bar-action" href="/app/">Launch workspace</a>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-art">
+          <picture>
+            <source type="image/avif" srcset="/art/hero-640.avif 640w, /art/hero-1280.avif 1280w, /art/hero-2000.avif 2000w" sizes="100vw" />
+            <img
+              src="/art/hero-1280.webp"
+              srcset="/art/hero-640.webp 640w, /art/hero-1280.webp 1280w, /art/hero-2000.webp 2000w"
+              sizes="100vw"
+              width="2000"
+              height="1116"
+              fetchpriority="high"
+              alt="A tired office worker, seen from behind, stares at a hole broken through his cubicle wall. A violet galaxy pours through it, carrying pencils, compasses, element tiles and the symbols pi and sigma."
+            />
+          </picture>
+          <canvas class="rift" aria-hidden="true"></canvas>
+        </div>
+        <div class="hero-text">
+          <div class="hero-side">
+            <p class="standfirst">
+              Break through the routine. Drop in your slides, readings and notes, then study with AI that answers only from
+              them and shows you the page.
+            </p>
+            <a class="button" href="/app/">Launch workspace <span aria-hidden="true">→</span></a>
+            <p class="fineprint">Free. No account. Your files stay in your browser.</p>
+          </div>
+          <h1 id="hero-title">Virtual cubicle.<br />Boundless mind.</h1>
+        </div>
+      </section>
+
+      <section id="how" class="how" aria-labelledby="how-title">
+        <div class="how-head">
+          <h2 id="how-title">From a pile of files<br />to one desk</h2>
+          <p>Make a cubicle for each course. Everything you add to it becomes something you can search, question and quiz yourself on.</p>
+        </div>
+        <svg class="many" viewBox="0 0 1200 270" role="img" aria-label="Scattered files and symbols are pulled into a narrow band, then laid out in neat rows."></svg>
+        <ol class="how-steps">
+          <li>
+            <h3>Drop</h3>
+            <p>PDFs, PowerPoint, Word files and typed notes. They are read in your browser, page by page.</p>
+          </li>
+          <li>
+            <h3>Index</h3>
+            <p>Each page is cut into short passages and indexed, so the right one turns up for every question.</p>
+          </li>
+          <li>
+            <h3>Study</h3>
+            <p>Chat, flashcards, quizzes and a tutor work from those passages and cite the slide or page.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="proof" aria-labelledby="proof-title">
+        <div class="proof-head">
+          <h2 id="proof-title">Answers with a page number</h2>
+          <p>
+            A general chatbot fills gaps with guesses. Vubicle searches your material first, answers from what it finds, and
+            links each claim to its slide or page. If your notes do not cover a question, it tells you.
+          </p>
+        </div>
+        <div class="specimens" aria-hidden="true">
+          <figure class="specimen"><span class="specimen-word">Maybe?</span><figcaption class="specimen-cap">What a general chatbot can offer</figcaption></figure>
+          <figure class="specimen"><span class="specimen-word">p.&thinsp;14</span><figcaption class="specimen-cap">What Vubicle shows you</figcaption></figure>
+        </div>
+
+        <div class="try" id="try">
+          <div class="try-intro">
+            <h3>Try the search</h3>
+            <p>This runs the same passage search the workspace uses, on a sample lecture, right in this page. No AI call, nothing sent.</p>
+          </div>
+          <form class="try-form" role="search" action="/app/" method="get">
+            <label for="try-q">Ask the sample lecture “Orbits and gravitation”</label>
+            <div class="try-row">
+              <input id="try-q" name="q" type="search" autocomplete="off" placeholder="Why are orbits elliptical?" />
+              <button type="submit" class="button button-small">Search</button>
+            </div>
+            <div class="try-chips" aria-label="Example questions">
+              <button type="button">What is escape velocity?</button>
+              <button type="button">Kepler's third law</button>
+              <button type="button">Who painted the Mona Lisa?</button>
+            </div>
+          </form>
+          <div class="try-result" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section id="tools" class="tools" aria-labelledby="tools-title">
+        <h2 id="tools-title">One desk,<br />every tool</h2>
+        <dl class="tool-list">
+          <div><dt>Chat with citations</dt><dd>Ask anything about the course. Each answer links to the passage it came from, and you can open it in place.</dd></div>
+          <div><dt>Flashcards</dt><dd>Made from your material or written by you, then scheduled to come back right before you would forget them.</dd></div>
+          <div><dt>Practice quizzes</dt><dd>Multiple choice and short answer, with instant feedback, partial credit and a link to the source. Saved for retakes.</dd></div>
+          <div><dt>Tutor mode</dt><dd>The tutor asks one question at a time, checks your answer against the notes and gives hints before answers.</dd></div>
+          <div><dt>Concept map</dt><dd>See how the topics in a course connect. Pick one to read its passages or turn it into cards.</dd></div>
+          <div><dt>Deadlines</dt><dd>Pulls exam and assignment dates and weights out of the syllabus into a list you can edit and add to your calendar.</dd></div>
+          <div><dt>Focus timer</dt><dd>A Pomodoro timer that sits on the desk while you work.</dd></div>
+        </dl>
+      </section>
+
+      <section id="questions" class="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">Plain answers</h2>
+        <div class="qa">
+          <h3>Where do my files go?</h3>
+          <p>They are read and stored in your browser. To answer a question, only the passages that match it are sent to Google Gemini, or to Groq when Gemini is busy.</p>
+        </div>
+        <div class="qa">
+          <h3>Can Google or Groq see my notes?</h3>
+          <p>They see the passages sent with each request. Free tiers may use that text to improve their services, so do not upload anything confidential.</p>
+        </div>
+        <div class="qa">
+          <h3>Does it cost anything?</h3>
+          <p>No. Vubicle runs on free tiers. When they are busy, you wait in a short line with a countdown instead of seeing an error.</p>
+        </div>
+        <div class="qa">
+          <h3>Do I need an account?</h3>
+          <p>No. Your cubicles live in this browser. Export one to a file to move it to another computer or keep a backup.</p>
+        </div>
+        <div class="qa">
+          <h3>Which files work?</h3>
+          <p>PDF, PowerPoint (.pptx), Word (.docx) and typed notes. Save old .ppt and .doc files in the newer format first. Scanned PDFs need text recognition before they can be read.</p>
+        </div>
+        <div class="qa">
+          <h3>What if my notes do not cover it?</h3>
+          <p>Vubicle says so. It answers from your material, not from what the model happens to know.</p>
+        </div>
+      </section>
+
+      <section class="portals" aria-labelledby="portals-title">
+        <h2 id="portals-title" class="portals-title">Start with a subject</h2>
+        <ul class="portal-strip">
+          <li>
+            <a href="/app/?subject=stem">
+              <picture>
+                <source type="image/avif" srcset="/art/stem-640.avif 640w, /art/stem-1280.avif 1280w" sizes="(max-width: 700px) 100vw, 34vw" />
+                <img src="/art/stem-640.webp" srcset="/art/stem-640.webp 640w, /art/stem-1280.webp 1280w" sizes="(max-width: 700px) 100vw, 34vw" width="1280" height="714" loading="lazy" alt="Chalk equations on a blackboard dissolve into planets circling a sun." />
+              </picture>
+              <span class="portal-name">STEM and physics <span aria-hidden="true">→</span></span>
+            </a>
+          </li>
+          <li>
+            <a href="/app/?subject=chemistry">
+              <picture>
+                <source type="image/avif" srcset="/art/chem-640.avif 640w, /art/chem-1280.avif 1280w" sizes="(max-width: 700px) 100vw, 34vw" />
+                <img src="/art/chem-640.webp" srcset="/art/chem-640.webp 640w, /art/chem-1280.webp 1280w" sizes="(max-width: 700px) 100vw, 34vw" width="1280" height="714" loading="lazy" alt="Glowing crystal lattices float above glass flasks in a dark lab." />
+              </picture>
+              <span class="portal-name">Molecular chemistry <span aria-hidden="true">→</span></span>
+            </a>
+          </li>
+          <li>
+            <a href="/app/?subject=humanities">
+              <picture>
+                <source type="image/avif" srcset="/art/humanities-640.avif 640w, /art/humanities-1280.avif 1280w" sizes="(max-width: 700px) 100vw, 34vw" />
+                <img src="/art/humanities-640.webp" srcset="/art/humanities-640.webp 640w, /art/humanities-1280.webp 1280w" sizes="(max-width: 700px) 100vw, 34vw" width="1280" height="714" loading="lazy" alt="An open book releases parchment pages that drift across a starry sky." />
+              </picture>
+              <span class="portal-name">Literature and humanities <span aria-hidden="true">→</span></span>
+            </a>
+          </li>
+        </ul>
+        <div class="portal-band">
+          <p class="closing">
+            Your course is waiting on the other side of the wall.
+            <a href="/app/">Open your first cubicle</a> and add a lecture.
+          </p>
+          <p class="closing-note">Any subject works. These three just come with their own art.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="foot-top">
+        <p>A study workspace by Ayaan Alvi, Computer Science at the University of Guelph.</p>
+        <p>Runs on free tiers. Files stay in your browser.</p>
+        <a href="#main">Back to top</a>
+      </div>
+      <a class="foot-line" href="/app/">Open the workspace <span aria-hidden="true">→</span></a>
+      <div class="foot-meta">
+        <span><a href="#questions">Privacy</a> · <a href="/api/status">Service status</a></span>
+        <span>Illustrations by Ayaan Alvi, made with Gemini</span>
+        <span>Guelph, 2026</span>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/landing/main.ts"></script>
+  </body>
+</html>

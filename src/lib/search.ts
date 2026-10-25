@@ -20,7 +20,7 @@ export function tokenize(text: string): string[] {
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
     .split(/[^\p{L}\p{N}]+/u)
-    .filter((w) => w && !STOP.has(w))
+    .filter((w) => w && !STOP.has(w) && (w.length > 1 || /\d/.test(w)))
     .map(stem);
 }
 
