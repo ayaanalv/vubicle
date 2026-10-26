@@ -6,6 +6,8 @@ const lecture = makePdf([
   ['Escape velocity is the minimum speed needed to leave a body without further thrust.', 'From the surface of Earth it is about 11.2 km per second.'],
   ['Circular orbit speed follows from setting gravity equal to the centripetal force.', 'Satellites in lower orbits move faster.'],
 ]);
+test.skip(!process.env.SHOTS, 'Screenshots for design review: SHOTS=1 npx playwright test shots');
+
 for (const [name, vp, scheme] of [['desk', { width: 1440, height: 900 }, 'light'], ['desk-dark', { width: 1440, height: 900 }, 'dark'], ['phone', { width: 390, height: 844 }, 'light']] as const) {
   test(`shots ${name}`, async ({ page }) => {
     await page.setViewportSize(vp);
