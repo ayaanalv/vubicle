@@ -73,6 +73,11 @@ h3 {
 a {
   color: inherit;
 }
+a,
+button,
+input {
+  touch-action: manipulation;
+}
 :focus-visible {
   outline: 3px solid var(--gold);
   outline-offset: 3px;
@@ -784,5 +789,12 @@ a {
   .pre {
     opacity: 1;
     transform: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .try-chips button,
+  .bar nav a {
+    min-height: 44px;
   }
 }

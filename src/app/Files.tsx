@@ -84,7 +84,7 @@ export function Files({ cubicle, files, onDone }: { cubicle: Cubicle; files: Sto
               </span>
               {f.status === 'reading' && (
                 <span className="bar" role="progressbar" aria-label={`Reading ${f.name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((f.progress ?? 0) * 100)}>
-                  <i style={{ width: `${Math.max(4, (f.progress ?? 0) * 100)}%` }} />
+                  <i style={{ transform: `scaleX(${Math.max(0.04, f.progress ?? 0)})` }} />
                 </span>
               )}
               {f.error && (

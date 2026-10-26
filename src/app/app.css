@@ -445,7 +445,6 @@ textarea.input {
   display: block;
   height: 100%;
   background: var(--data);
-  transition: width 0.2s ease;
 }
 .drop {
   margin: 8px 16px 16px;
@@ -1332,4 +1331,58 @@ fieldset.question {
 }
 .history select {
   min-width: 0;
+}
+
+/* Interface guidelines pass. */
+button,
+a,
+label,
+select,
+input {
+  touch-action: manipulation;
+}
+dialog,
+.viewer-body,
+.thread,
+.panel,
+.menu {
+  overscroll-behavior: contain;
+}
+/* Row actions show on hover only where hovering exists; touch screens always see them. */
+@media (hover: none) {
+  .file .btn {
+    opacity: 1;
+  }
+}
+.bar > i {
+  width: 100% !important;
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+/* Touch screens: every control at least 44px. */
+@media (pointer: coarse) {
+  .btn,
+  .btn.sm,
+  .tab,
+  .chip,
+  .source,
+  .input,
+  .menu button,
+  .menu a,
+  .menu label {
+    min-height: 44px;
+  }
+  .btn.icon,
+  .btn.icon.sm {
+    width: 44px;
+  }
+  .cite {
+    min-width: 28px;
+    height: 26px;
+  }
+  .t-check input {
+    width: 24px;
+    height: 24px;
+  }
 }

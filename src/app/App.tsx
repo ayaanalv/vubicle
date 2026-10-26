@@ -260,7 +260,7 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
     <Desk.Provider value={api}>
       <div className="shell">
         <header className="top">
-          <a className="mark" href="/" aria-label="Vubicle home">
+          <a className="mark" href="/" aria-label="Vubicle home" translate="no">
             <img src="/favicon.svg" alt="" />
             <span>vubicle</span>
           </a>
