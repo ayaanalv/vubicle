@@ -126,7 +126,7 @@ export function Timer() {
             </button>
           </div>
           <p className="muted small" style={{ textAlign: 'center' }}>
-            {s.rounds} focus round{s.rounds === 1 ? '' : 's'} today · long break after every 4
+            {s.rounds} focus round{s.rounds === 1 ? "" : "s"} done · long break after every 4
           </p>
         </div>
       )}

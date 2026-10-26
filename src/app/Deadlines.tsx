@@ -152,7 +152,7 @@ export function Deadlines() {
                   <th>What</th>
                   <th className="t-date">Date</th>
                   <th className="t-weight" style={{ textAlign: 'right' }}>
-                    Weight
+                    Weight (%)
                   </th>
                   <th className="t-kind">Kind</th>
                   <th className="t-act">

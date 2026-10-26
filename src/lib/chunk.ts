@@ -12,7 +12,8 @@ export interface Chunk {
 
 /** Splits text into sentences, keeping line breaks as boundaries too (slides are mostly lines). */
 function sentences(text: string): string[] {
-  return text.match(/[^.!?\n]+(?:[.!?]+["')\]]*|\n|$)/g)?.map((s) => s.trim()).filter(Boolean) ?? [];
+  // Split after . ! ? only when whitespace follows, so "11.2 km" and "e.g.," stay whole.
+  return text.split(/(?<=[.!?]["')\]]?)\s+|\n+/).map((s) => s.trim()).filter(Boolean);
 }
 
 /**

@@ -482,8 +482,13 @@ textarea.input {
   color: var(--muted);
   max-width: 52ch;
 }
-.empty .art {
+.empty picture {
   width: 100%;
+}
+.empty .art {
+  display: block;
+  width: 100%;
+  height: auto;
   aspect-ratio: 16 / 7;
   object-fit: cover;
   border-radius: var(--r);
@@ -1227,6 +1232,16 @@ td .input:focus {
   }
 }
 
+/* On laptops, the source viewer takes the files column's place. */
+@media (max-width: 1280px) and (min-width: 901px) {
+  .body.viewing {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  }
+  .body.viewing .side {
+    display: none;
+  }
+}
+
 /* ---------- phone and tablet ---------- */
 @media (max-width: 900px) {
   :root {
@@ -1308,4 +1323,13 @@ td .input:focus {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Fieldset borders run through their legend; quiz questions are separated by space instead. */
+fieldset.question {
+  border-top: 0;
+  padding-top: 24px;
+}
+.history select {
+  min-width: 0;
 }

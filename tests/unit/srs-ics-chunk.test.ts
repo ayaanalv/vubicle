@@ -69,6 +69,10 @@ describe('chunkSections', () => {
     expect(chunks.at(-1)).toMatchObject({ label: 'p. 2', text: 'Short page.' });
     expect(new Set(chunks.map((c) => c.id)).size).toBe(chunks.length);
   });
+  it('does not split decimals or abbreviations', () => {
+    const [c] = chunkSections('f', [{ label: 'p. 1', page: 1, text: 'It is about 11.2 km/s, e.g. from Earth. Next.' }]);
+    expect(c.text).toBe('It is about 11.2 km/s, e.g. from Earth. Next.');
+  });
   it('hard-splits a giant run-on sentence', () => {
     const chunks = chunkSections('f', [{ label: 'p. 1', page: 1, text: 'word '.repeat(1000) }], 500);
     expect(chunks.length).toBeGreaterThan(5);
