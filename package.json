@@ -18,6 +18,8 @@
     "@fontsource-variable/fredoka": "^5.3.0",
     "@upstash/redis": "^1.39.0",
     "fflate": "^0.8.3",
+    "idb": "^8.0.4",
+    "lucide-react": "^1.61.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
