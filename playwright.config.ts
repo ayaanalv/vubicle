@@ -7,7 +7,9 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'list',
+  // In CI, annotations in the run plus an HTML report the workflow uploads when the job fails.
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
+  forbidOnly: Boolean(process.env.CI),
   use: { baseURL: 'http://localhost:5174', trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   webServer: { command: 'npx vite --port 5174 --strictPort', url: 'http://localhost:5174', reuseExistingServer: !process.env.CI, timeout: 60_000 },
   projects: [

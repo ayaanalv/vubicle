@@ -1,5 +1,7 @@
 # Vubicle
 
+[![CI](https://github.com/ayaanalv/vubicle/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ayaanalv/vubicle/actions/workflows/ci.yml)
+
 **Live site: [vubicle.com](https://vubicle.com)** · Free to use · No account · Works on laptops and phones
 
 Vubicle stands for **virtual cubicle**: one study workspace per course. A student makes a cubicle for a course, drops in the lecture slides, readings, syllabus and notes, and studies with AI tools that answer **only from that material** and **cite the page or slide** each answer came from.
