@@ -5,6 +5,12 @@ export interface Pt {
   y: number;
 }
 
+/**
+ * Pull toward the centre. Strong enough that a topic with no links stays near the others: at 0.05 a lone
+ * topic drifted to a corner and, once the layout was stretched to fit, squeezed the rest into a strip.
+ */
+const GRAVITY = 1.5;
+
 /** Positions in 0..1 on both axes for an area of the given aspect ratio (width / height). */
 export function forceLayout(ids: string[], links: { from: string; to: string }[], aspect = 1.6, iterations = 400): Map<string, Pt> {
   const n = ids.length;
@@ -40,9 +46,8 @@ export function forceLayout(ids: string[], links: { from: string; to: string }[]
       disp[b].y += (dy / d) * f;
     }
     for (let i = 0; i < n; i++) {
-      // Gentle pull to the centre keeps unlinked topics on screen.
-      disp[i].x -= pos[i].x * 0.05;
-      disp[i].y -= pos[i].y * 0.05;
+      disp[i].x -= pos[i].x * GRAVITY;
+      disp[i].y -= pos[i].y * GRAVITY;
       const d = Math.hypot(disp[i].x, disp[i].y) || 1;
       pos[i].x += (disp[i].x / d) * Math.min(d, t);
       pos[i].y += (disp[i].y / d) * Math.min(d, t);
