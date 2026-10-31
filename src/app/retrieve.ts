@@ -27,6 +27,21 @@ export async function findPassages(scope: Scope, query: string, limit = 8): Prom
   return ids.map((id) => byId.get(id)!).filter(Boolean);
 }
 
+/** Questions that ask for a judgment or an overview of the material rather than one fact. */
+export function isBroadQuestion(q: string): boolean {
+  return /\b(hardest|toughest|trickiest|most (important|difficult|confusing|tested)|key (ideas?|points?|concepts?|takeaways?)|main (ideas?|points?|topics?)|focus on|study first|prioriti[sz]e|summar(y|i[sz]e)|overview|big picture|on the (exam|test|midterm|final)|likely (to be )?(tested|asked|on)|exam|what should i know)\b/i.test(q);
+}
+
+/** Keyword hits first, then passages spread across the scope, in reading order. */
+export async function broadPassages(scope: Scope, query: string, limit = 10): Promise<StoredChunk[]> {
+  const all = await chunksFor(scope.cubicleId, scope.fileId);
+  const hits = (await findPassages(scope, query, 4)).slice(0, 4);
+  const picked = new Set(hits.map((c) => c.id));
+  const rest = spread(all, limit - hits.length, picked).filter((c) => !picked.has(c.id));
+  const order = new Map(all.map((c, i) => [c.id, i]));
+  return [...hits, ...rest].slice(0, limit).sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+}
+
 /** Evenly spaced passages across the scope, preferring ones not in `used`. */
 export function spread(chunks: StoredChunk[], n: number, used = new Set<string>()): StoredChunk[] {
   const fresh = chunks.filter((c) => !used.has(c.id) && c.text.length > 80);

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Send, Plus, Lightbulb, Eye, Sparkles, GraduationCap } from 'lucide-react';
 import { byCubicle, chunksFor, getChunks, put, uid, useLive, type Chat, type Message } from './db';
 import { ai, AiError } from './api';
-import { findPassages, fileNames, spread, toPassages } from './retrieve';
+import { findPassages, broadPassages, isBroadQuestion, fileNames, spread, toPassages } from './retrieve';
 import { Rich, Working } from './ui';
 import { useDesk } from './App';
 
@@ -54,7 +54,9 @@ export function ChatTool({ mode }: { mode: 'chat' | 'tutor' }) {
       let c: Chat = chat ?? { id: uid(), cubicleId: cubicle.id, mode: 'chat', title: q.slice(0, 60), fileId, messages: [], updatedAt: Date.now() };
       c = await save(c, { role: 'student', text: q, at: Date.now() });
       const scope = { cubicleId: cubicle.id, fileId };
-      let found = await findPassages(scope, q, 8);
+      // Judgment and overview questions ("hardest idea", "what to focus on") need a view of the whole
+      // material, so keyword hits are topped up with passages spread across it.
+      let found = isBroadQuestion(q) ? await broadPassages(scope, q, 10) : await findPassages(scope, q, 8);
       // A follow-up like "why?" or "give an example of that" leans on the previous question.
       const prev = c.messages.filter((m) => m.role === 'student').slice(-2, -1)[0]?.text;
       const followUp = q.split(/\s+/).length < 8 && /\b(it|this|that|these|those|they|them|why|how so|more|example)\b/i.test(q);

@@ -100,8 +100,9 @@ export function plan(task: Task, body: any, today = new Date().toISOString().sli
           system: `You are Vubicle, a study assistant for a university student.
 ${GROUNDING}
 Answer the question using only the passages. Put a citation like [2] right after each claim, using the passage numbers. Several citations are fine: [1][3].
+The no-outside-knowledge rule is about facts, not judgment. For questions like "what is the hardest idea", "what matters most", "what should I focus on" or "what is likely on the exam", make the call yourself from the material: pick, say in a sentence why (how much space it gets, how many other ideas depend on it, what the slides stress or call examinable, how abstract or calculation-heavy it is), then explain it, citing the pages. Never answer that the material does not say which is hardest or most important.
 Be clear and concise: short paragraphs or a short list. You may use **bold** and "- " list items, nothing else.
-If the passages do not contain the answer, set "covered" to false and say briefly what the material does cover instead, without answering from general knowledge.
+Set "covered" to false only when the facts needed to answer are not in the passages. Then say briefly what the material does cover instead, without answering from general knowledge.
 ${JSON_ONLY} Shape: {"covered": true, "answer": "..."}`,
           user: `${past.length ? `Earlier in this conversation:\n${past.map((h) => `${h.role}: ${h.text}`).join('\n')}\n\n` : ''}Passages:\n${numbered(ps, ctx)}\n\nQuestion: ${question}`,
           json: true,
