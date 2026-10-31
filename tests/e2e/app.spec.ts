@@ -240,6 +240,13 @@ for (const path of ['/', '/app/']) {
       await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
       await expect(page.getByText('2 pages', { exact: false })).toBeVisible();
       await page.getByRole('button', { name: 'Done' }).click();
+      // A long first question makes a long chat title in the history row, which once pushed "New" off screen.
+      await page.getByLabel('Ask about your material').fill('Why is escape velocity higher than the circular orbital speed at the same radius?');
+      await page.keyboard.press('Enter');
+      const newChat = page.getByRole('button', { name: 'New', exact: true });
+      await expect(newChat).toBeVisible();
+      const box = await newChat.boundingBox();
+      expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);

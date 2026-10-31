@@ -838,6 +838,8 @@ dialog::backdrop {
   display: flex;
   gap: 8px;
   align-items: center;
+  /* Auto side margins stop a flex item from stretching; without a width it grows to the longest chat title. */
+  width: 100%;
   max-width: 760px;
   margin: 0 auto;
   padding: 12px var(--pad) 0;
