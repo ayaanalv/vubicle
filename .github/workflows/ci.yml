@@ -38,6 +38,12 @@ jobs:
     name: Browser tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Playwright's own image ships the browsers and their system libraries, so nothing is installed at run
+    # time (installing Chromium with --with-deps hung for over 10 minutes on the first run). The tag must
+    # match @playwright/test in package.json, which is pinned to an exact version for that reason.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --user 1001
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -45,8 +51,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
       # The opt-in suites (README and design screenshots) skip themselves unless their env var is set.
       - name: Playwright tests
         run: npx playwright test
