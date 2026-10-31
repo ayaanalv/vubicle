@@ -54,69 +54,6 @@ export function Menu({ label, button, children }: { label: string; button: React
   );
 }
 
-// ---- safe rendering of AI text: never HTML, only a few patterns turned into elements ----
-
-function inline(text: string, onCite?: (n: number) => void, max = Infinity): ReactNode[] {
-  const out: ReactNode[] = [];
-  const re = /\*\*([^*]+)\*\*|\[(\d+(?:\s*,\s*\d+)*)\]/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  let k = 0;
-  while ((m = re.exec(text))) {
-    if (m.index > last) out.push(text.slice(last, m.index));
-    if (m[1]) out.push(<strong key={k++}>{m[1]}</strong>);
-    else
-      for (const n of m[2].split(',').map((s) => Number(s.trim()))) {
-        if (n >= 1 && n <= max && onCite)
-          out.push(
-            <button key={k++} type="button" className="cite" onClick={() => onCite(n)} aria-label={`Open source ${n}`}>
-              {n}
-            </button>,
-          );
-      }
-    last = re.lastIndex;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
-
-export function Rich({ text, onCite, max }: { text: string; onCite?: (n: number) => void; max?: number }) {
-  const blocks = text.replace(/\r/g, '').split(/\n{2,}/);
-  return (
-    <div className="rich">
-      {blocks.map((b, i) => {
-        const lines = b.split('\n').filter((l) => l.trim());
-        if (lines.length && lines.every((l) => /^\s*[-*•]\s+/.test(l)))
-          return (
-            <ul key={i}>
-              {lines.map((l, j) => (
-                <li key={j}>{inline(l.replace(/^\s*[-*•]\s+/, ''), onCite, max)}</li>
-              ))}
-            </ul>
-          );
-        if (lines.length && lines.every((l) => /^\s*\d+[.)]\s+/.test(l)))
-          return (
-            <ol key={i}>
-              {lines.map((l, j) => (
-                <li key={j}>{inline(l.replace(/^\s*\d+[.)]\s+/, ''), onCite, max)}</li>
-              ))}
-            </ol>
-          );
-        return (
-          <p key={i}>
-            {lines.map((l, j) => (
-              <span key={j}>
-                {j > 0 && <br />}
-                {inline(l, onCite, max)}
-              </span>
-            ))}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
 // ---- the line: waiting, shown calmly ----
 
 export function useNow(active: boolean, ms = 1000) {

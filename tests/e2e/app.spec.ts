@@ -102,6 +102,30 @@ test('chat answers with citations that open the passage in context', async ({ pa
   await expect(page.getByText('I could not find anything about that in your material.', { exact: false })).toBeVisible();
 });
 
+for (const tag of ['', ' @phone']) {
+  test(`chat renders code, lists and citations without raw markdown${tag}`, async ({ page }) => {
+    await setUp(page);
+    await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
+    if (tag) await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Explain the hardest idea here simply' }).click();
+    const msg = page.locator('.msg.ai').last();
+    await expect(msg.locator('code.code-inline').first()).toHaveText('Amoeba');
+    await expect(msg).not.toContainText('`');
+    await expect(msg).not.toContainText('**');
+    await expect(msg.locator('pre.code-block')).toContainText('    @Override void rotate');
+    await expect(msg.locator('.code-lang')).toHaveText('java');
+    await expect(msg.locator('li strong')).toHaveText('overridden');
+    // The long line scrolls inside its block; the page itself never scrolls sideways.
+    const pre = await msg.locator('pre.code-block').evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, right: el.getBoundingClientRect().right }));
+    expect(pre.scroll).toBeGreaterThan(pre.client);
+    expect(pre.right).toBeLessThanOrEqual(page.viewportSize()!.width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    // A citation chip right after code still opens the source.
+    await msg.getByRole('button', { name: 'Open source 1' }).first().click();
+    await expect(page.getByRole('complementary', { name: 'Source' })).toBeVisible();
+  });
+}
+
 test('a busy AI service puts the request in line, then answers', async ({ page }) => {
   await setUp(page, { busy: { remaining: 2 } });
   await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);

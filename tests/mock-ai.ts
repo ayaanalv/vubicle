@@ -11,6 +11,24 @@ export function mockAi(body: any): unknown {
     case 'chat': {
       const q: string = body.question ?? '';
       if (/mona lisa|weather/i.test(q)) return { covered: false, answer: 'Your material does not cover that. It covers ' + ps.map((p) => p.label).slice(0, 2).join(' and ') + '.' };
+      // The shape of a real reply that showed literal backticks on the live site, plus a block and a list.
+      if (/hardest idea/i.test(q))
+        return {
+          covered: true,
+          answer: [
+            'The hardest idea is an `Amoeba` implementing a unique rotation instead of using the general `Shape` rotation [1].',
+            '',
+            '```java',
+            'class Amoeba extends Shape {',
+            '    @Override void rotate(double degrees) { this.wobble(degrees * Math.PI / 180.0, Shape.DEFAULT_PIVOT_X, Shape.DEFAULT_PIVOT_Y); }',
+            '}',
+            '```',
+            '',
+            'Why it is hard:',
+            '- `rotate()` is **overridden**, not overloaded [1]',
+            '- callers still hold a `Shape` reference',
+          ].join('\n'),
+        };
       return { covered: true, answer: `${first(ps[0]?.text ?? '')} [1]${ps[1] ? `\n\n- ${first(ps[1].text)} [2]` : ''}` };
     }
     case 'tutor': {

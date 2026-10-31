@@ -3,7 +3,8 @@ import { Send, Plus, Lightbulb, Eye, Sparkles, GraduationCap } from 'lucide-reac
 import { byCubicle, chunksFor, getChunks, put, uid, useLive, type Chat, type Message } from './db';
 import { ai, AiError } from './api';
 import { findPassages, broadPassages, isBroadQuestion, fileNames, spread, toPassages } from './retrieve';
-import { Rich, Working } from './ui';
+import { Working } from './ui';
+import { Rich, citedNumbers } from './rich';
 import { useDesk } from './App';
 
 const ANSWERING = 'Answering your question';
@@ -204,7 +205,7 @@ function Bubble({ m }: { m: Message }) {
   const { openSource } = useDesk();
   if (m.role === 'student') return <div className="msg student">{m.text}</div>;
   const cites = m.cites ?? [];
-  const used = [...new Set([...m.text.matchAll(/\[(\d+(?:\s*,\s*\d+)*)\]/g)].flatMap((x) => x[1].split(',').map((n) => Number(n.trim()))))].filter((n) => n >= 1 && n <= cites.length);
+  const used = citedNumbers(m.text).filter((n) => n <= cites.length);
   const open = (n: number) => openSource(cites[n - 1], cites);
   return (
     <div className="msg ai">

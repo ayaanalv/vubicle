@@ -5,6 +5,7 @@ import { ai, AiError } from './api';
 import { fileNames, spread, toPassages } from './retrieve';
 import { forceLayout } from '../lib/layout';
 import { Working } from './ui';
+import { Rich } from './rich';
 import { useDesk } from './App';
 
 const MAPPING = 'Mapping the topics';
@@ -93,15 +94,19 @@ export function MapTool() {
               const p = pos.get(t.id)!;
               return (
                 <button key={t.id} className="node" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} aria-pressed={picked === t.id} onClick={() => setPicked(picked === t.id ? null : t.id)}>
-                  {t.label}
+                  <Rich inline text={t.label} />
                 </button>
               );
             })}
           </div>
           {topic ? (
             <div className="topic-panel" aria-live="polite">
-              <h2>{topic.label}</h2>
-              <p>{topic.summary}</p>
+              <h2>
+                <Rich inline text={topic.label} />
+              </h2>
+              <p>
+                <Rich inline text={topic.summary} />
+              </p>
               {(() => {
                 const rel = map.links.filter((l) => l.from === topic.id || l.to === topic.id);
                 return rel.length ? (

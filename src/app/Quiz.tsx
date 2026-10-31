@@ -4,6 +4,7 @@ import { byCubicle, chunksFor, getChunks, put, remove, uid, useLive, type Attemp
 import { ai, AiError } from './api';
 import { findPassages, fileNames, spread, toPassages } from './retrieve';
 import { Working } from './ui';
+import { Rich } from './rich';
 import { useDesk } from './App';
 
 const WRITING = 'Writing your quiz';
@@ -211,13 +212,13 @@ function TakeQuiz({ quiz, onBack }: { quiz: Quiz; onBack: () => void }) {
           return (
             <fieldset key={i} className="question" disabled={done || busy}>
               <legend>
-                {i + 1}. {q.question}
+                {i + 1}. <Rich inline text={q.question} />
               </legend>
               {q.type === 'mcq' ? (
                 q.options!.map((o, j) => (
                   <label key={j} className={`option${done && j === q.answer ? ' right' : ''}${done && a === j && j !== q.answer ? ' wrong' : ''}`}>
                     <input type="radio" name={`q${i}`} checked={a === j} onChange={() => setAnswers(answers.map((x, k) => (k === i ? j : x)))} />
-                    <span>{o}</span>
+                    <Rich inline text={o} />
                   </label>
                 ))
               ) : (
@@ -231,13 +232,14 @@ function TakeQuiz({ quiz, onBack }: { quiz: Quiz; onBack: () => void }) {
                   <span className={`verdict ${s === 1 ? 'correct' : s ? 'partial' : 'incorrect'}`}>
                     {s === 1 ? 'Correct' : s ? `Partly right, ${Math.round(s * 100)}%` : 'Not quite'}
                   </span>
-                  {result!.feedback[i] && <span>{result!.feedback[i]}</span>}
+                  {/* Grading sends one passage, the question's source, so [1] opens it. */}
+                  {result!.feedback[i] && <Rich inline text={result!.feedback[i]!} onCite={q.chunkId ? () => openSource(q.chunkId!) : undefined} max={1} />}
                   {q.type === 'short' && (
                     <span>
-                      <strong>Model answer:</strong> {String(q.answer)}
+                      <strong>Model answer:</strong> <Rich inline text={String(q.answer)} />
                     </span>
                   )}
-                  <span>{q.explanation}</span>
+                  <Rich inline text={q.explanation} />
                   <span className="row-actions">
                     {q.chunkId && (
                       <button type="button" className="btn ghost sm" onClick={() => openSource(q.chunkId!)}>

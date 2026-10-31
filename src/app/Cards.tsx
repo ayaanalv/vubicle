@@ -5,6 +5,7 @@ import { ai, AiError } from './api';
 import { findPassages, fileNames, spread, toPassages } from './retrieve';
 import { newSchedule, review, preview, type Grade } from '../lib/srs';
 import { Working, useNow } from './ui';
+import { Rich } from './rich';
 import { useDesk } from './App';
 
 const MAKING = 'Making flashcards';
@@ -158,8 +159,8 @@ export function Cards() {
                 </li>
               ) : (
                 <li key={c.id}>
-                  <span className="q">{c.front}</span>
-                  <span className="a">{c.back}</span>
+                  <Rich inline className="q" text={c.front} />
+                  <Rich inline className="a" text={c.back} />
                   <span className="row-actions">
                     <span className="when" style={{ alignSelf: 'center', marginRight: 6 }}>
                       {when(c.due, now)}
@@ -284,8 +285,8 @@ function Review({ queue, onDone }: { queue: Card[]; onDone: () => void }) {
       </div>
       <div className="study">
         <button className="flash" onClick={() => setShown(true)} aria-label={shown ? undefined : 'Show the answer'} aria-live="polite">
-          <span className="face">{card.front}</span>
-          {shown ? <span className="back">{card.back}</span> : <span className="muted small">Tap or press Space to show the answer</span>}
+          <Rich inline className="face" text={card.front} />
+          {shown ? <Rich inline className="back" text={card.back} /> : <span className="muted small">Tap or press Space to show the answer</span>}
         </button>
         {shown && (
           <>
