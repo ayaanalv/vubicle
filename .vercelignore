@@ -1,3 +1,5 @@
-art
-docs
-.taste-skill
+# Leading slashes anchor each rule to the repo root. A bare "art" also matched public/art,
+# which removed every optimized image from the deploy.
+/art
+/docs
+/.taste-skill
