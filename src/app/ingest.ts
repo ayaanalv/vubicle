@@ -3,7 +3,10 @@
 import { detectKind, parsePptx, parseDocx, parseNote, parsePdf, FileError, type Parsed } from '../lib/parse';
 import { chunkSections } from '../lib/chunk';
 import { db, put, uid, changed, type StoredFile } from './db';
-import { embed } from './api';
+import { embed, whenIdle } from './api';
+
+/** Pause between embedding batches. A 200-page course is about ten batches, so indexing takes a minute or two. */
+const EMBED_GAP_MS = 8_000;
 
 const MAX_BYTES = 60 * 1024 * 1024;
 
@@ -84,7 +87,11 @@ export async function embedPending(cubicleId: string): Promise<void> {
   clearTimeout(timers.get(cubicleId));
   try {
     const d = await db();
-    for (;;) {
+    for (let batch = 0; ; batch++) {
+      // Indexing is optional; study requests are not. Step aside while any is running or in line,
+      // and leave a gap between batches so indexing never bursts through the free tier.
+      if (batch > 0) await new Promise((r) => setTimeout(r, EMBED_GAP_MS));
+      await whenIdle();
       const todo = (await d.getAllFromIndex('chunks', 'cubicle', cubicleId)).filter((c) => !c.embedding).slice(0, 32);
       if (!todo.length) break;
       const { vectors, retryAfter } = await embed(todo.map((c) => c.text.slice(0, 2000)), 'document');

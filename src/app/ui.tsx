@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Clock } from 'lucide-react';
-import { useLine } from './api';
+import { useLine, formatWait, type Waiting } from './api';
 
 /** A native <dialog>: focus is trapped and Escape closes it without extra code. */
 export function Dialog({ open, onClose, label, children }: { open: boolean; onClose: () => void; label: string; children: ReactNode }) {
@@ -134,17 +134,30 @@ export function LineBadge() {
   const line = useLine();
   const now = useNow(line.length > 0);
   if (!line.length) return null;
-  const soonest = Math.max(0, Math.ceil((Math.min(...line.map((w) => w.until)) - now) / 1000));
+  const waiting = line.filter((w) => w.state === 'waiting');
+  const next = waiting.length ? formatWait(Math.min(...waiting.map((w) => w.until)) - now) : 'trying';
   return (
     <div className="line" role="status" title={line.map((w) => w.label).join(', ')}>
       <Clock size={16} aria-hidden="true" />
       <span className="label">{line.length === 1 ? 'In line' : `${line.length} in line`}</span>
-      <span className="num">{soonest}s</span>
+      <span className="num">{next}</span>
     </div>
   );
 }
 
-/** Inline state for a request in progress: working, or waiting in line with a countdown. */
+/** What a waiting request tells the student, in plain words. Exported for tests. */
+export function waitMessage(w: Pick<Waiting, 'reason' | 'state' | 'until' | 'since'>, now: number): { why: string; next: string } {
+  const next = w.state === 'trying' ? 'Trying again now.' : `Next try in ${formatWait(w.until - now)}.`;
+  if (w.reason === 'cap') {
+    return { why: 'You have used this hour’s free AI requests.', next: w.state === 'trying' ? 'Trying again now.' : `The next one opens in ${formatWait(w.until - now)}.` };
+  }
+  if (w.reason === 'network') return { why: 'The connection dropped.', next };
+  const waited = now - w.since;
+  if (waited >= 2 * 60_000) return { why: `Both free AI services have been busy for ${formatWait(waited)}. Vubicle keeps trying on its own.`, next };
+  return { why: 'The free AI services are busy, so you are in line.', next };
+}
+
+/** Inline state for a request in progress: working, or waiting in line with the real time left and a Cancel button. */
 export function Working({ label }: { label: string }) {
   const line = useLine();
   const mine = line.find((w) => w.label === label);
@@ -155,19 +168,17 @@ export function Working({ label }: { label: string }) {
         <span className="dots">{label}</span>
       </div>
     );
-  const s = Math.max(0, Math.ceil((mine.until - now) / 1000));
-  const why =
-    mine.reason === 'cap'
-      ? 'You have used this hour’s free requests. A spot opens soon.'
-      : mine.reason === 'network'
-        ? 'The connection dropped. Trying again.'
-        : 'The free AI services are busy, so you are in line.';
+  const { why, next } = waitMessage(mine, now);
   return (
-    <div className="wait" role="status" aria-live="polite">
+    <div className="wait">
       <Clock size={18} aria-hidden="true" />
       <span>
-        {why} Next try in <strong className="num">{s}s</strong>. You can keep studying while you wait.
+        {/* Only the reason is announced; a countdown read aloud every second would drown everything else. */}
+        <span role="status">{why}</span> <strong className="num">{next}</strong> You can keep studying while you wait.
       </span>
+      <button type="button" className="btn sm" onClick={mine.cancel}>
+        Cancel
+      </button>
     </div>
   );
 }

@@ -10,14 +10,15 @@ const lecture = makePdf([
 const slides = makePptx([{ paras: ['Newton', 'Every mass attracts every other mass.'] }, { paras: ['Satellites in lower orbits move faster.'], notes: 'Mention the ISS.' }]);
 const syllabus = makeDocx(['# Grading', 'Midterm exam on November 3, worth 25%.', 'Assignment 2 due November 14, worth 15%.', 'Weekly quizzes are worth 10% in total.']);
 
-type Busy = { remaining: number };
+type Busy = { remaining: number; error?: 'busy' | 'cap'; retryAfter?: number };
 
 /** Routes /api to the mock. `busy.remaining` > 0 makes the next calls answer 429 first. */
 async function mockApi(page: Page, busy: Busy = { remaining: 0 }) {
   await page.route('**/api/ai', async (route) => {
     if (busy.remaining > 0) {
       busy.remaining--;
-      return route.fulfill({ status: 429, headers: { 'retry-after': '1' }, json: { error: 'busy', retryAfter: 1, message: 'busy' } });
+      const retryAfter = busy.retryAfter ?? 1;
+      return route.fulfill({ status: 429, headers: { 'retry-after': String(retryAfter) }, json: { error: busy.error ?? 'busy', retryAfter, message: 'busy' } });
     }
     await route.fulfill({ json: { result: mockAi(route.request().postDataJSON()), provider: 'mock' } });
   });
@@ -108,8 +109,24 @@ test('a busy AI service puts the request in line, then answers', async ({ page }
   await page.keyboard.press('Enter');
   await expect(page.getByText(/you are in line/)).toBeVisible();
   await expect(page.locator('.line')).toContainText('In line');
+  // The wait shows a real number of seconds, or "Trying again now" while a try is in flight. Never 0s.
+  await expect(page.locator('.wait strong')).toHaveText(/^(Next try in [1-9]\d*s\.|Trying again now\.)$/);
+  await expect(page.locator('.wait')).not.toContainText(/\b0s\b/);
   await expect(page.getByRole('button', { name: 'Open source 1' })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/you are in line/)).toBeHidden();
+});
+
+test('a long hourly-cap wait is stated plainly and can be cancelled', async ({ page }) => {
+  await setUp(page, { busy: { remaining: 1, error: 'cap', retryAfter: 41 * 60 } });
+  await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
+  await page.getByLabel('Ask about your material').fill('Why are orbits elliptical?');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('You have used this hour’s free AI requests.')).toBeVisible();
+  await expect(page.locator('.wait strong')).toHaveText(/The next one opens in 4[1-9] min\./);
+  await expect(page.locator('.line')).toContainText('min');
+  await page.locator('.wait').getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByText(/Cancelled\./)).toBeVisible();
+  await expect(page.locator('.line')).toBeHidden();
 });
 
 test('flashcards are generated, reviewed and rescheduled', async ({ page }) => {
