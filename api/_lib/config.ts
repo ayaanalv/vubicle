@@ -5,7 +5,7 @@ export function config(env: NodeJS.ProcessEnv = process.env) {
   return {
     geminiKey: env.GEMINI_API_KEY || '',
     groqKey: env.GROQ_API_KEY || '',
-    geminiModels: list(env.GEMINI_MODELS, 'gemini-3.8-flash,gemini-3.5-flash-lite'),
+    geminiModels: list(env.GEMINI_MODELS, 'gemini-3.5-flash-lite,gemini-3.8-flash'),
     geminiEmbedModel: env.GEMINI_EMBED_MODEL || 'gemini-embedding-001',
     groqModel: env.GROQ_MODEL || 'openai/gpt-oss-120b',
     // Upstash via the Vercel Marketplace sets KV_REST_API_*; a direct Upstash database uses UPSTASH_REDIS_REST_*.

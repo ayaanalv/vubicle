@@ -93,12 +93,12 @@ export async function handleAi(req: Request, deps: Deps): Promise<Response> {
   } catch (e) {
     if (e instanceof BusyError) {
       await quota.refund();
-      deps.log?.({ task: body.task, busy: e.retryAfter, ms: Date.now() - t0 });
+      deps.log?.({ task: body.task, busy: e.retryAfter, attempts: e.attempts, ms: Date.now() - t0 });
       return busy(e.retryAfter, 'busy', 'The free AI services are busy right now.');
     }
     if (e instanceof UnavailableError) {
       await quota.refund();
-      deps.log?.({ task: body.task, unavailable: true });
+      deps.log?.({ task: body.task, unavailable: true, attempts: e.attempts });
       return json(503, { error: 'unavailable', message: 'The AI service could not answer. Try again later.' });
     }
     throw e;

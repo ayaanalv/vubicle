@@ -80,6 +80,49 @@ describe('withFailover', () => {
     expect(seen).toEqual([40000, 12000]);
   });
 
+  it('a model that hangs does not use up the time the backups need (the production incident)', async () => {
+    // Simulated clock: the hung call costs its full per-call timeout.
+    let t = 0;
+    const hung = fake('flash', async () => { t += 15_000; throw new ProviderError('flash', 0, 'timed out'); });
+    const lite = fake('lite', async () => { t += 15_000; throw new ProviderError('lite', 503, 'overloaded'); });
+    const groqP = fake('groq', async () => 'from groq');
+    const out = await withFailover(
+      [{ provider: hung, contextChars: 1 }, { provider: lite, contextChars: 1 }, { provider: groqP, contextChars: 1 }],
+      prompt,
+      (x) => x,
+      { ...noSleep, cooldowns: new Map(), now: () => t },
+    );
+    expect(out.provider).toBe('groq');
+    expect(hung.generate).toHaveBeenCalledTimes(1);
+    expect(out.attempts.map((a) => a.status)).toEqual([0, 503, 200]);
+  });
+
+  it('benches a provider that failed, so the next request goes straight to the backup', async () => {
+    const cooldowns = new Map<string, number>();
+    let t = 1_000_000;
+    const flaky = fake('flash', async () => { throw new ProviderError('flash', 0, 'timed out'); });
+    const backup = fake('groq', async () => 'ok');
+    const list = [{ provider: flaky, contextChars: 1 }, { provider: backup, contextChars: 1 }];
+    await withFailover(list, prompt, (x) => x, { ...noSleep, cooldowns, now: () => t, retries: 0 });
+    await withFailover(list, prompt, (x) => x, { ...noSleep, cooldowns, now: () => t, retries: 0 });
+    expect(flaky.generate).toHaveBeenCalledTimes(1);
+    // A timeout benches for 4 x 30s; afterwards the provider gets another chance.
+    t += 121_000;
+    await withFailover(list, prompt, (x) => x, { ...noSleep, cooldowns, now: () => t, retries: 0 });
+    expect(flaky.generate).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports the real wait when every provider is benched, never zero', async () => {
+    const t = 5_000_000;
+    const cooldowns = new Map([['a', t + 42_000], ['b', t + 90_000]]);
+    const a = fake('a', async () => 'x');
+    const b = fake('b', async () => 'x');
+    const err = await withFailover([{ provider: a, contextChars: 1 }, { provider: b, contextChars: 1 }], prompt, (x) => x, { ...noSleep, cooldowns, now: () => t }).catch((e) => e);
+    expect(err).toBeInstanceOf(BusyError);
+    expect(err.retryAfter).toBe(42);
+    expect(a.generate).not.toHaveBeenCalled();
+  });
+
   it('backoff is full jitter, doubling each attempt', () => {
     expect(backoff(0, 500, () => 1)).toBe(500);
     expect(backoff(2, 500, () => 1)).toBe(2000);
@@ -242,6 +285,17 @@ describe('handler', () => {
     expect((await res.json()).error).toBe('busy');
     const again = await handleAi(req(chat), { ...deps, fetch: geminiOk as any, failover: { cooldowns: new Map() } });
     expect(again.status).toBe(200);
+  });
+
+  it('falls over from Gemini to Groq when Gemini is rate limited or overloaded', async () => {
+    const f = vi.fn(async (url: string) =>
+      url.includes('generativelanguage')
+        ? new Response(JSON.stringify({ error: { message: 'overloaded' } }), { status: 503 })
+        : Response.json({ choices: [{ message: { content: '{"covered":true,"answer":"From Groq [1]."}' } }] }),
+    );
+    const res = await handleAi(req(chat), { config: cfg(), store: memoryStore(), fetch: f as any, failover: { sleep: async () => {}, cooldowns: new Map() } });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ provider: 'groq', result: { answer: 'From Groq [1].' } });
   });
 
   it('says when no keys are configured', async () => {
