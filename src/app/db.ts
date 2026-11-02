@@ -133,17 +133,21 @@ export const PER_CUBICLE: Exclude<Store, 'cubicles'>[] = ['files', 'blobs', 'chu
 
 let dbp: Promise<IDBPDatabase<Schema>> | undefined;
 export function db() {
-  dbp ??= openDB<Schema>('vubicle', 1, {
-    upgrade(d) {
-      d.createObjectStore('cubicles', { keyPath: 'id' });
-      for (const s of PER_CUBICLE) {
-        const os = d.createObjectStore(s, { keyPath: 'id' });
-        os.createIndex('cubicle', 'cubicleId');
-        if (s === 'chunks') (os as unknown as IDBObjectStore).createIndex('file', 'fileId');
-      }
-      d.createObjectStore('cache', { keyPath: 'key' });
-    },
-  });
+  // Opened inside a promise: a browser that blocks storage can throw the moment indexedDB is touched, and
+  // that must become a rejection the app can explain, not an exception that blanks the page.
+  dbp ??= Promise.resolve().then(() =>
+    openDB<Schema>('vubicle', 1, {
+      upgrade(d) {
+        d.createObjectStore('cubicles', { keyPath: 'id' });
+        for (const s of PER_CUBICLE) {
+          const os = d.createObjectStore(s, { keyPath: 'id' });
+          os.createIndex('cubicle', 'cubicleId');
+          if (s === 'chunks') (os as unknown as IDBObjectStore).createIndex('file', 'fileId');
+        }
+        d.createObjectStore('cache', { keyPath: 'key' });
+      },
+    }),
+  );
   return dbp;
 }
 

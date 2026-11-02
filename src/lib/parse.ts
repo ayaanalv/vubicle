@@ -183,7 +183,9 @@ export async function parsePdf(name: string, bytes: Uint8Array, pdfjs: PdfJs, on
   } catch (e) {
     const msg = String((e as Error)?.message || e);
     if (/password/i.test(msg)) throw new FileError(`"${name}" is password protected. Remove the password and add it again.`);
-    throw new FileError(`"${name}" could not be opened as a PDF. It may be damaged.`);
+    // The detail lets a tester report why, e.g. a browser missing a feature the PDF reader needs.
+    const detail = `${(e as Error)?.name || 'Error'}: ${msg}`.replace(/\s+/g, ' ').slice(0, 160);
+    throw new FileError(`"${name}" could not be opened as a PDF. It may be damaged, or this browser may be too old to read it. (Details: ${detail})`);
   }
   const sections: Section[] = [];
   for (let i = 1; i <= doc.numPages; i++) {

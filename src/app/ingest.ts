@@ -1,5 +1,6 @@
 // Reading files in the browser: parse, cut into passages, store. Studying can start as soon as a file is
 // stored; embeddings are added afterwards in the background and are optional.
+import './polyfills';
 import { detectKind, parsePptx, parseDocx, parseNote, parsePdf, FileError, type Parsed } from '../lib/parse';
 import { chunkSections } from '../lib/chunk';
 import { db, put, uid, changed, type StoredFile } from './db';
@@ -10,9 +11,13 @@ const EMBED_GAP_MS = 8_000;
 
 const MAX_BYTES = 60 * 1024 * 1024;
 
-let pdfjsP: Promise<typeof import('pdfjs-dist')> | undefined;
+// The legacy build, not the default one: pdf.js 6's default build calls Math.sumPrecise and other very new
+// features with no fallback, so PDFs failed on browsers older than about Chrome 147 or Safari 26.2. The legacy
+// build polyfills those; ./polyfills adds Promise.withResolvers, which it leaves out, on the page and in our
+// worker entry (./pdf.worker.ts).
+let pdfjsP: Promise<typeof import('pdfjs-dist/legacy/build/pdf.mjs')> | undefined;
 export function loadPdfJs() {
-  pdfjsP ??= Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')]).then(([lib, worker]) => {
+  pdfjsP ??= Promise.all([import('pdfjs-dist/legacy/build/pdf.mjs'), import('./pdf.worker?worker&url')]).then(([lib, worker]) => {
     lib.GlobalWorkerOptions.workerSrc = worker.default;
     return lib;
   });
@@ -32,9 +37,39 @@ async function store(file: StoredFile, parsed: Parsed, blob?: Blob) {
   changed('blobs');
 }
 
+/** The browser refused to save anything. Shown to the student as is; there is no file row to show it on. */
+export class StorageError extends Error {}
+
+/** One line a tester can pass on: what failed, without a stack trace. */
+export function errorDetail(e: unknown): string {
+  const err = e as { name?: string; message?: string } | null;
+  return `${err?.name || 'Error'}: ${err?.message ?? String(e)}`.replace(/\s+/g, ' ').slice(0, 160);
+}
+
+/** Errors that mean the browser's storage failed, rather than the file. */
+export const isStorageError = (e: unknown) =>
+  e instanceof StorageError || (e instanceof DOMException && ['QuotaExceededError', 'UnknownError', 'InvalidStateError', 'SecurityError'].includes(e.name));
+
+export function storageErrorMessage(e: unknown): string {
+  if (e instanceof StorageError) return e.message;
+  if ((e as { name?: string } | null)?.name === 'QuotaExceededError') {
+    return 'Your browser has no storage space left for Vubicle. Free some disk space, or export and delete a cubicle you no longer need, then try again.';
+  }
+  return `Your browser isn’t letting Vubicle save files on this device. This happens in some private windows, when site data is blocked in settings, and inside apps like Instagram or Discord. Open vubicle.com in a regular Chrome, Edge, Firefox or Safari window. (Details: ${errorDetail(e)})`;
+}
+
+const saveOrExplain = async (...args: Parameters<typeof put>) => {
+  try {
+    await put(...args);
+  } catch (e) {
+    throw new StorageError(storageErrorMessage(e));
+  }
+};
+
+/** Reads a file into the cubicle. Throws StorageError when the browser will not store anything at all. */
 export async function addFile(cubicleId: string, f: File) {
   const rec: StoredFile = { id: uid(), cubicleId, name: f.name, kind: 'note', size: f.size, addedAt: Date.now(), status: 'reading', progress: 0 };
-  await put('files', rec);
+  await saveOrExplain('files', rec);
   // Ask the browser not to evict this site's storage under pressure. It may say no; that is fine.
   navigator.storage?.persist?.().catch(() => {});
   try {
@@ -50,7 +85,7 @@ export async function addFile(cubicleId: string, f: File) {
         // Writing progress on every page would flood IndexedDB on long PDFs.
         if (Date.now() - lastPaint > 250 || done === total) {
           lastPaint = Date.now();
-          put('files', { ...rec, progress: done / total });
+          put('files', { ...rec, progress: done / total }).catch(() => {});
         }
       });
     } else if (kind === 'pptx') parsed = parsePptx(f.name, bytes);
@@ -59,19 +94,26 @@ export async function addFile(cubicleId: string, f: File) {
     await store(rec, parsed, new Blob([bytes], { type: f.type || 'application/octet-stream' }));
     void embedPending(cubicleId);
   } catch (e) {
-    const message = e instanceof FileError ? e.message : `"${f.name}" could not be read. It may be damaged or in an unusual format.`;
     if (!(e instanceof FileError)) console.error(e);
-    await put('files', { ...rec, status: 'error', error: message });
+    const message =
+      e instanceof FileError
+        ? e.message
+        : isStorageError(e)
+          ? storageErrorMessage(e)
+          : `"${f.name}" could not be read. It may be damaged or in an unusual format, or this browser may be too old to read it. (Details: ${errorDetail(e)})`;
+    await saveOrExplain('files', { ...rec, status: 'error', error: message });
   }
 }
 
+/** Saves typed or pasted notes. Throws StorageError when the browser will not store anything at all. */
 export async function addNote(cubicleId: string, title: string, text: string) {
   const rec: StoredFile = { id: uid(), cubicleId, name: title || 'Notes', kind: 'note', size: text.length, addedAt: Date.now(), status: 'reading' };
   try {
     await store(rec, parseNote(rec.name, text), new Blob([text], { type: 'text/plain' }));
     void embedPending(cubicleId);
   } catch (e) {
-    await put('files', { ...rec, status: 'error', error: e instanceof FileError ? e.message : 'Those notes could not be saved.' });
+    const message = e instanceof FileError ? e.message : isStorageError(e) ? storageErrorMessage(e) : `Those notes could not be saved. (Details: ${errorDetail(e)})`;
+    await saveOrExplain('files', { ...rec, status: 'error', error: message });
   }
 }
 

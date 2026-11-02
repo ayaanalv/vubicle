@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { MessagesSquare, GraduationCap, Layers, ListChecks, Network, CalendarDays, FolderOpen, MoreHorizontal, Plus, Download, Upload, Trash2, Sun, Moon, Monitor, ShieldCheck, Pencil, Home } from 'lucide-react';
-import { byCubicle, cubicles, put, uid, useLive, type Cubicle } from './db';
+import { byCubicle, cubicles, db, put, uid, useLive, type Cubicle } from './db';
 import { Dialog, LineBadge, Menu } from './ui';
 import { Files } from './Files';
 import { ChatTool } from './Chat';
@@ -12,7 +12,7 @@ import { Viewer } from './Viewer';
 import { Timer } from './Timer';
 import { PrivacyGate, PrivacyText } from './Privacy';
 import { exportCubicle, importBackup, DeleteCubicle } from './Backup';
-import { embedPending } from './ingest';
+import { embedPending, storageErrorMessage } from './ingest';
 
 export type Tool = 'chat' | 'tutor' | 'cards' | 'quiz' | 'map' | 'deadlines';
 const TOOLS: { id: Tool; name: string; icon: typeof Layers }[] = [
@@ -57,6 +57,11 @@ export function App() {
   const list = useLive(cubicles, ['cubicles'], []);
   const [current, setCurrent] = useState<string | null>(() => readLocal('vubicle.current'));
   const [creating, setCreating] = useState(false);
+  // When the browser blocks storage the database never opens; say so instead of showing a blank page.
+  const [storageProblem, setStorageProblem] = useState('');
+  useEffect(() => {
+    db().catch((e) => setStorageProblem(storageErrorMessage(e)));
+  }, []);
   const subject = useMemo(() => new URLSearchParams(location.search).get('subject') || '', []);
 
   // Arriving from a subject portal opens the create dialog with that subject filled in.
@@ -74,12 +79,19 @@ export function App() {
 
   const create = async (name: string) => {
     const c: Cubicle = { id: uid(), name: name.trim() || 'My course', subject: SUBJECTS[subject] ? subject : undefined, createdAt: Date.now() };
-    await put('cubicles', c);
+    try {
+      await put('cubicles', c);
+    } catch (e) {
+      setCreating(false);
+      setStorageProblem(storageErrorMessage(e));
+      return;
+    }
     setCurrent(c.id);
     setCreating(false);
     if (subject) history.replaceState(null, '', location.pathname);
   };
 
+  if (storageProblem) return <StorageProblem message={storageProblem} />;
   if (!list) return null;
   return (
     <PrivacyGate>
@@ -90,6 +102,26 @@ export function App() {
       )}
       <CreateDialog open={creating} initial={SUBJECTS[subject] || ''} onClose={() => setCreating(false)} onCreate={create} />
     </PrivacyGate>
+  );
+}
+
+function StorageProblem({ message }: { message: string }) {
+  return (
+    <div className="shell">
+      <header className="top">
+        <a className="mark" href="/" aria-label="Vubicle home" translate="no">
+          <img src="/favicon.svg" alt="" />
+          <span>vubicle</span>
+        </a>
+      </header>
+      <main className="empty">
+        <h1>Vubicle can’t save here</h1>
+        <p className="notice bad" role="alert">
+          {message}
+        </p>
+        <p>Vubicle keeps your files and study work in this browser, so it needs the browser’s site storage to work.</p>
+      </main>
+    </div>
   );
 }
 

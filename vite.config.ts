@@ -42,7 +42,9 @@ function devApi(): Plugin {
 export default defineConfig({
   plugins: [react(), devApi()],
   // Pre-bundle up front so the dev server never reloads the page mid-session (it would in e2e tests).
-  optimizeDeps: { include: ['react', 'react-dom/client', 'react/jsx-dev-runtime', 'idb', 'lucide-react', 'fflate', 'pdfjs-dist'] },
+  optimizeDeps: { include: ['react', 'react-dom/client', 'react/jsx-dev-runtime', 'idb', 'lucide-react', 'fflate', 'pdfjs-dist/legacy/build/pdf.mjs'] },
+  // pdf.js starts its worker as a module worker, so ours (src/app/pdf.worker.ts) is built as one.
+  worker: { format: 'es' },
   build: {
     rollupOptions: {
       input: {

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { FileText, Presentation, FileType2, NotebookPen, Upload, Trash2, AlertCircle, Loader2, X } from 'lucide-react';
 import { deleteFile, type Cubicle, type StoredFile } from './db';
-import { addFile, addNote } from './ingest';
+import { addFile, addNote, storageErrorMessage } from './ingest';
 import { Dialog } from './ui';
 
 const ICONS = { pdf: FileText, pptx: Presentation, docx: FileType2, note: NotebookPen };
@@ -20,10 +20,14 @@ export function Files({ cubicle, files, onDone }: { cubicle: Cubicle; files: Sto
   const [over, setOver] = useState(false);
   const [noting, setNoting] = useState(false);
   const [confirm, setConfirm] = useState<StoredFile | null>(null);
+  // Set when the browser refuses to store anything, so there is no file row to show an error on.
+  const [storageProblem, setStorageProblem] = useState('');
+  const explain = (e: unknown) => setStorageProblem(storageErrorMessage(e));
 
   const add = (list: FileList | null) => {
     if (!list) return;
-    for (const f of Array.from(list)) void addFile(cubicle.id, f);
+    setStorageProblem('');
+    for (const f of Array.from(list)) addFile(cubicle.id, f).catch(explain);
   };
   const sorted = [...files].sort((a, b) => b.addedAt - a.addedAt);
 
@@ -55,6 +59,11 @@ export function Files({ cubicle, files, onDone }: { cubicle: Cubicle; files: Sto
           <NotebookPen aria-hidden="true" /> Write or paste notes
         </button>
         <p>Or drop files here. PDF, PowerPoint (.pptx), Word (.docx) or text.</p>
+        {storageProblem && (
+          <p className="notice bad" role="alert">
+            {storageProblem}
+          </p>
+        )}
         <input
           ref={input}
           type="file"
@@ -97,7 +106,7 @@ export function Files({ cubicle, files, onDone }: { cubicle: Cubicle; files: Sto
         })}
       </ul>
 
-      <NoteDialog open={noting} onClose={() => setNoting(false)} onSave={(t, x) => addNote(cubicle.id, t, x)} />
+      <NoteDialog open={noting} onClose={() => setNoting(false)} onSave={(t, x) => addNote(cubicle.id, t, x).catch(explain)} />
       <Dialog open={!!confirm} onClose={() => setConfirm(null)} label="Remove file">
         <div className="dialog">
           <h2>Remove {confirm?.name}?</h2>
