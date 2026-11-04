@@ -51,8 +51,8 @@ describe('search and link previews', () => {
 describe('security headers', () => {
   const headers: { key: string; value: string }[] = JSON.parse(readFileSync('vercel.json', 'utf8')).headers[0].headers;
   const get = (k: string) => headers.find((h) => h.key.toLowerCase() === k.toLowerCase())?.value ?? '';
-  it('allows only the site\'s own scripts and connections', () => {
-    const csp = get('Content-Security-Policy') || get('Content-Security-Policy-Report-Only');
+  it('enforces a policy that allows only the site\'s own scripts and connections', () => {
+    const csp = get('Content-Security-Policy');
     const script = csp.split(';').map((d) => d.trim()).find((d) => d.startsWith('script-src'));
     expect(script).toBe("script-src 'self'");
     expect(csp).toContain("connect-src 'self'");

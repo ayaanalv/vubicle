@@ -254,7 +254,7 @@ Code: [`src/app/api.ts`](src/app/api.ts), [`src/app/ui.tsx`](src/app/ui.tsx), [`
 - **Every input is bounded:** request body (300 KB), passages per task (3 to 40), characters per passage (700 or 2,000), question length, history length, and card or question counts.
 - **Prompt injection is contained.** Passage text and student answers are marked as data in every prompt, and outputs are validated against the expected shape, so a hostile PDF can't change what the endpoint does.
 - **No accounts, no server copy.** Files and study data live in the student's browser (IndexedDB). Only the passages that match a request are sent, to Google Gemini or Groq. The landing page and the app's first screen say plainly that free tiers may use that text to improve their services, and that students shouldn't upload anything confidential.
-- **Hardening headers** (`nosniff`, `DENY` framing, a strict referrer policy, a `Permissions-Policy` that turns off camera, microphone and location, and a Content Security Policy that allows only the site's own scripts and connections) are set in [`vercel.json`](vercel.json). The CSP starts in report-only mode; the whole browser suite passes on the production build with it enforced.
+- **Hardening headers** (`nosniff`, `DENY` framing, a strict referrer policy, a `Permissions-Policy` that turns off camera, microphone and location, and a Content Security Policy that allows only the site's own scripts and connections) are set in [`vercel.json`](vercel.json). The whole browser suite passes on the production build with the CSP enforced.
 
 ## Testing
 
