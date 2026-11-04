@@ -170,7 +170,7 @@ export function parseNote(title: string, text: string): Parsed {
 
 // Minimal slice of the pdf.js API we use, so tests can pass the Node build and the app the browser one.
 interface PdfJs {
-  getDocument(src: { data: Uint8Array; isEvalSupported?: boolean; useSystemFonts?: boolean }): {
+  getDocument(src: { data: Uint8Array; useSystemFonts?: boolean }): {
     promise: Promise<{
       numPages: number;
       getPage(n: number): Promise<{ getTextContent(): Promise<{ items: unknown[] }> }>;
@@ -182,7 +182,7 @@ export async function parsePdf(name: string, bytes: Uint8Array, pdfjs: PdfJs, on
   let doc;
   try {
     // pdf.js may detach the buffer it is given, so pass a copy and keep the original for storage.
-    doc = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
+    doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
   } catch (e) {
     const msg = String((e as Error)?.message || e);
     if (/password/i.test(msg)) throw new FileError(`"${name}" is password protected. Remove the password and add it again.`);

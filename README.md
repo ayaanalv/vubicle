@@ -254,7 +254,7 @@ Code: [`src/app/api.ts`](src/app/api.ts), [`src/app/ui.tsx`](src/app/ui.tsx), [`
 - **Every input is bounded:** request body (300 KB), passages per task (3 to 40), characters per passage (700 or 2,000), question length, history length, and card or question counts.
 - **Prompt injection is contained.** Passage text and student answers are marked as data in every prompt, and outputs are validated against the expected shape, so a hostile PDF can't change what the endpoint does.
 - **No accounts, no server copy.** Files and study data live in the student's browser (IndexedDB). Only the passages that match a request are sent, to Google Gemini or Groq. The landing page and the app's first screen say plainly that free tiers may use that text to improve their services, and that students shouldn't upload anything confidential.
-- **Hardening headers** (`nosniff`, `DENY` framing, a strict referrer policy) are set in [`vercel.json`](vercel.json).
+- **Hardening headers** (`nosniff`, `DENY` framing, a strict referrer policy, a `Permissions-Policy` that turns off camera, microphone and location, and a Content Security Policy that allows only the site's own scripts and connections) are set in [`vercel.json`](vercel.json). The CSP starts in report-only mode; the whole browser suite passes on the production build with it enforced.
 
 ## Testing
 
@@ -325,7 +325,7 @@ README_SHOTS=1 npx playwright test readme --project=desktop
 ## Deploy
 
 1. Import the repo in Vercel (Hobby plan). It detects Vite, builds with `npm run build`, and serves `dist/` plus the functions in `api/`.
-2. Add `GEMINI_API_KEY` and `GROQ_API_KEY` under **Settings > Environment Variables**. Add **Upstash for Redis** from the **Storage** tab; it sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`, which the code reads. Everything else in [`.env.example`](.env.example) has a default.
+2. Add `GEMINI_API_KEY`, `GROQ_API_KEY` and `IP_SALT` (a long random value, stored as a secret) under **Settings > Environment Variables**. Add **Upstash for Redis** from the **Storage** tab; it sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`, which the code reads. Everything else in [`.env.example`](.env.example) has a default.
 3. Add your domain under **Settings > Domains** and enter the DNS records Vercel shows at your registrar.
 4. Open `/api/status`. It should show both providers configured and `"rateLimitStore": "upstash"`.
 
