@@ -76,8 +76,12 @@ function sleep(ms: number, signal: AbortSignal) {
 
 /** Wait before the next try: the server's hint, or exponential backoff, plus up to 30% jitter. Never under 1s. */
 export function nextDelay(tries: number, retryAfterSec?: number, random = Math.random): number {
-  const base = retryAfterSec && retryAfterSec > 0 ? retryAfterSec * 1000 : Math.min(60_000, 2000 * 2 ** tries);
-  return Math.max(1000, Math.round(base * (1 + random() * 0.3)));
+  const given = Boolean(retryAfterSec && retryAfterSec > 0);
+  const base = given ? retryAfterSec! * 1000 : Math.min(60_000, 2000 * 2 ** tries);
+  // Jitter spreads retries so browsers don't all try at once. A few seconds does that; 30% of a server-given
+  // wait would make "opens in 41 min" read 53 min.
+  const jitter = given ? Math.min(base * 0.3, 5000) : base * 0.3;
+  return Math.max(1000, Math.round(base + random() * jitter));
 }
 
 /** "8s", "2 min 5s", "41 min", "1 h 2 min". Rounds up, so it never shows 0 while there is still a wait. */
