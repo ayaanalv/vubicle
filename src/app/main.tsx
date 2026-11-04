@@ -3,6 +3,7 @@ import '@fontsource-variable/fredoka';
 import '@fontsource-variable/figtree';
 import './app.css';
 import { App } from './App';
+import { analytics } from '../analytics';
 
 try {
   const t = localStorage.getItem('vubicle.theme');
@@ -12,3 +13,5 @@ try {
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
+
+analytics();

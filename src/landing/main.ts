@@ -4,6 +4,7 @@ import './landing.css';
 import { initDemo } from './demo';
 import { drawMany } from './many';
 import { startRift } from './rift';
+import { analytics } from '../analytics';
 
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -56,3 +57,5 @@ if (!still && 'IntersectionObserver' in window) {
     mo.observe(many);
   }
 }
+
+analytics();
