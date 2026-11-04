@@ -56,14 +56,19 @@ export function Menu({ label, button, children }: { label: string; button: React
 
 // ---- the line: waiting, shown calmly ----
 
+/**
+ * The current time, re-rendering every `ms` while `active`. It returns the real time on every render, not the
+ * time of the last tick: a stored value goes stale while inactive, so a timer started after a long pause
+ * briefly showed the pause added to its countdown.
+ */
 export function useNow(active: boolean, ms = 1000) {
-  const [now, setNow] = useState(Date.now());
+  const [, setTick] = useState(0);
   useEffect(() => {
     if (!active) return;
-    const t = setInterval(() => setNow(Date.now()), ms);
+    const t = setInterval(() => setTick((n) => n + 1), ms);
     return () => clearInterval(t);
   }, [active, ms]);
-  return now;
+  return Date.now();
 }
 
 /** A small badge in the top bar while anything is waiting. It never blocks the page. */

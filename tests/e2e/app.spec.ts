@@ -277,6 +277,23 @@ for (const path of ['/', '/app/']) {
   });
 }
 
+test('the focus timer starts at its full length even after the page sat idle', async ({ page }) => {
+  // A controllable clock: let the timer sit paused for a while, as on the live site, then press Start.
+  await page.clock.install();
+  await setUp(page);
+  const face = page.locator('.timer-face');
+  await page.getByRole('button', { name: /Focus timer/ }).click();
+  await expect(face).toHaveText('25:00');
+  // Pause the clock so no tick can correct the display before it is read.
+  await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 1000));
+  await page.clock.runFor(4 * 60_000 + 5_000);
+  await page.getByRole('button', { name: 'Start' }).click();
+  // Read once, at once. Before the fix this said 29:05: 25 minutes plus the idle time.
+  expect(await face.textContent()).toMatch(/^(25:00|24:59)$/);
+  await page.clock.runFor(60_000);
+  expect(await face.textContent()).toMatch(/^(24:00|23:59)$/);
+});
+
 test('landing is usable from the keyboard', async ({ page }) => {
   await page.goto('/');
   await page.keyboard.press('Tab');
