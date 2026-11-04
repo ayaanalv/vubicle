@@ -10,7 +10,10 @@ export function PrivacyText() {
         <strong>Groq</strong> when Gemini is busy, to write the answer. These are free tiers, and the providers may use that text to improve
         their services.
       </p>
-      <p>Photos are different: they have no text to search, so when you add one the whole photo is sent once to be read.</p>
+      <p>
+        In the background, passages also go to Google once so search can find them by meaning. Photos have no text to search, so when you add
+        one the whole photo is sent once to be read. <a href="/privacy/">Read the full privacy page</a>.
+      </p>
       <p>
         <strong>Do not upload anything confidential</strong>: personal information, unpublished research, or material you are not allowed to
         share.

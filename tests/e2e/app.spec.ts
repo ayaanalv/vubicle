@@ -58,6 +58,18 @@ test('landing page leads into the app and states the privacy terms', async ({ pa
   await expect(page).toHaveURL(/\/app\/$/);
 });
 
+test('the privacy page and the 404 page are reachable and lead back in', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('contentinfo').getByRole('link', { name: 'Privacy' }).click();
+  await expect(page).toHaveURL(/\/privacy\/$/);
+  await expect(page.getByRole('heading', { name: 'Privacy', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What is sent to the AI' })).toBeVisible();
+  await page.goto('/404.html');
+  await expect(page.getByRole('heading', { name: 'This page isn’t here' })).toBeVisible();
+  await page.getByRole('link', { name: 'Open the workspace' }).click();
+  await expect(page).toHaveURL(/\/app\/$/);
+});
+
 test('subject portal starts a cubicle for that subject', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
@@ -303,7 +315,7 @@ test('deleting offers a backup first, and a backup restores the cubicle', async 
   await expect(page.getByRole('list', { name: 'Files in this cubicle' }).getByText('lecture4.pdf')).toBeVisible();
 });
 
-for (const path of ['/', '/app/']) {
+for (const path of ['/', '/app/', '/privacy/', '/404.html']) {
   test(`no horizontal scrolling on ${path} @phone`, async ({ page }) => {
     await mockApi(page);
     await page.goto(path);

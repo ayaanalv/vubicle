@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy · Vubicle</title>
+    <meta
+      name="description"
+      content="What Vubicle keeps in your browser, what it sends to Google Gemini and Groq, and how to delete everything."
+    />
+    <meta name="theme-color" content="#0e0c1d" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body class="plain">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="bar">
+      <a class="wordmark" href="/" aria-label="Vubicle home" translate="no">vubicle</a>
+      <a class="bar-action" href="/app/">Launch workspace</a>
+    </header>
+
+    <main id="main" class="doc">
+      <h1>Privacy</h1>
+      <p class="doc-lede">
+        Vubicle has no accounts and keeps no copy of your files on a server. Your course material lives in your browser. Some
+        of its text goes to Google Gemini or Groq when an AI tool needs it, as set out below.
+      </p>
+      <p class="doc-date">Last updated November 4, 2026</p>
+
+      <h2>What stays in your browser</h2>
+      <p>
+        Your files, the passages cut from them, and everything you make (flashcards, quizzes, chats, briefs, concept maps and
+        deadlines) are saved in this browser's storage on this device. They are not uploaded anywhere to be stored. Vubicle
+        also keeps a few settings in the browser, such as your theme and the last tool you used.
+      </p>
+      <p>A backup is a file you download yourself. Vubicle does not keep a copy of it.</p>
+
+      <h2>What is sent to the AI</h2>
+      <ul>
+        <li>
+          <strong>When you use an AI tool</strong>, Vubicle sends the passages that tool picked from your files, plus your
+          question or answer when there is one. For a question, that is a handful of matching passages. For a brief, a concept
+          map or a quiz with no topic, it is passages sampled across a file or the course.
+        </li>
+        <li>
+          <strong>For smart search</strong>, the text of every passage is sent once, in the background, to Google's embedding
+          service. It turns each passage into numbers that help search find passages by meaning. If this is unavailable,
+          Vubicle uses keyword search, which runs entirely in your browser.
+        </li>
+        <li>
+          <strong>Photos</strong> are sent whole, once, when you add them, so the AI can write out their text. After that, only
+          the text is used.
+        </li>
+      </ul>
+      <p>
+        Requests go through Vubicle's server to <strong>Google Gemini</strong>, or to <strong>Groq</strong> when Gemini is
+        busy. The server passes them on and does not store them.
+      </p>
+
+      <h2>What Google and Groq do with it</h2>
+      <p>
+        Vubicle uses the free tier of the Gemini API. Under the
+        <a href="https://ai.google.dev/gemini-api/terms">Gemini API terms</a>, Google uses what is sent on the free tier to
+        improve its products, and human reviewers may read it. Groq's handling of API data is set out in its
+        <a href="https://console.groq.com/docs/legal/services-agreement">services agreement</a>.
+      </p>
+      <p>
+        <strong>So do not add anything confidential</strong>: personal information, unpublished research, or material you
+        are not allowed to share.
+      </p>
+
+      <h2>What the server keeps</h2>
+      <ul>
+        <li>
+          <strong>A request count.</strong> To enforce the hourly limit on AI requests, the server stores a count under a
+          scrambled (hashed) form of your IP address. It is deleted after the hour. Your IP address itself is not stored.
+        </li>
+        <li>
+          <strong>Short-lived logs.</strong> Each AI request logs which tool was used, which provider answered and how long it
+          took. The logs never include your text, and the host deletes them within a day.
+        </li>
+      </ul>
+      <p>
+        The site is hosted on Vercel, which, like any web host, sees the IP address of each visit. Vubicle has no analytics, no
+        advertising and no tracking cookies.
+      </p>
+
+      <h2>Deleting your data</h2>
+      <p>
+        To delete one course, open its menu in the workspace and choose <strong>Delete this cubicle</strong>. To delete
+        everything, clear this site's data in your browser settings. Text already sent to Google or Groq is handled under their
+        terms above and cannot be recalled by Vubicle.
+      </p>
+
+      <p class="doc-back"><a class="button" href="/app/">Launch workspace <span aria-hidden="true">→</span></a></p>
+    </main>
+
+    <footer class="plain-foot">
+      <a href="/">Vubicle home</a>
+      <span>A study workspace by Ayaan Alvi, Guelph, 2026</span>
+    </footer>
+
+    <script type="module" src="/src/landing/page.ts"></script>
+  </body>
+</html>

@@ -12,9 +12,17 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" as="image" type="image/avif" href="/art/hero-1280.avif"
       imagesrcset="/art/hero-640.avif 640w, /art/hero-1280.avif 1280w, /art/hero-2000.avif 2000w" imagesizes="100vw" />
+    <!-- Link previews need full URLs; a relative og:image shows no picture on most networks. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Vubicle" />
+    <meta property="og:url" content="https://vubicle.com/" />
     <meta property="og:title" content="Vubicle" />
     <meta property="og:description" content="A virtual cubicle for each course. AI study tools that answer from your material, with citations." />
-    <meta property="og:image" content="/art/hero-1280.webp" />
+    <meta property="og:image" content="https://vubicle.com/art/share.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="An office worker stares at a hole in his cubicle wall, with a violet galaxy of pencils and math symbols pouring through." />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -132,7 +140,7 @@
         <h2 id="faq-title">Plain answers</h2>
         <div class="qa">
           <h3>Where do my files go?</h3>
-          <p>They are read and stored in your browser. To answer a question, only the passages that match it are sent to Google Gemini, or to Groq when Gemini is busy. Photos are the exception: each one is sent once so it can be read.</p>
+          <p>They are read and stored in your browser. To answer a question, only the passages that match it are sent to Google Gemini, or to Groq when Gemini is busy. In the background, passages also go to Google once so search can find them by meaning. Photos are sent whole, once, so they can be read. <a href="/privacy/">The privacy page</a> has the details.</p>
         </div>
         <div class="qa">
           <h3>Can Google or Groq see my notes?</h3>
@@ -205,7 +213,7 @@
       </div>
       <a class="foot-line" href="/app/">Open the workspace <span aria-hidden="true">→</span></a>
       <div class="foot-meta">
-        <span><a href="#questions">Privacy</a> · <a href="/api/status">Service status</a></span>
+        <span><a href="/privacy/">Privacy</a> · <a href="/api/status">Service status</a></span>
         <span>Illustrations by Ayaan Alvi, made with Gemini</span>
         <span>Guelph, 2026</span>
       </div>
