@@ -335,6 +335,8 @@ input {
   font: 600 clamp(96px, 14vw, 240px) / 0.9 var(--display);
   letter-spacing: -0.05em;
   white-space: nowrap;
+  /* The tight line height leaves no room below the baseline; the descenders of "p" and "y" reach 0.22em. */
+  padding-bottom: 0.2em;
 }
 .specimen:first-child .specimen-word {
   font-weight: 300;
