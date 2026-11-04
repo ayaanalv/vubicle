@@ -47,3 +47,20 @@ describe('search and link previews', () => {
     expect(read('404.html')).toContain('<meta name="robots" content="noindex" />');
   });
 });
+
+describe('security headers', () => {
+  const headers: { key: string; value: string }[] = JSON.parse(readFileSync('vercel.json', 'utf8')).headers[0].headers;
+  const get = (k: string) => headers.find((h) => h.key.toLowerCase() === k.toLowerCase())?.value ?? '';
+  it('allows only the site\'s own scripts and connections', () => {
+    const csp = get('Content-Security-Policy') || get('Content-Security-Policy-Report-Only');
+    const script = csp.split(';').map((d) => d.trim()).find((d) => d.startsWith('script-src'));
+    expect(script).toBe("script-src 'self'");
+    expect(csp).toContain("connect-src 'self'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("frame-ancestors 'none'");
+  });
+  it('turns off device features the site never uses', () => {
+    expect(get('Permissions-Policy')).toContain('camera=()');
+    expect(get('Permissions-Policy')).toContain('microphone=()');
+  });
+});
