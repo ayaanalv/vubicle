@@ -12,6 +12,12 @@ describe('wait times', () => {
     expect(nextDelay(3, undefined, () => 0)).toBe(16_000);
     expect(nextDelay(9, undefined, () => 1)).toBe(78_000);
   });
+  it('keeps a server-given wait accurate: jitter adds at most 5s to it', () => {
+    // A 41 min hourly-cap reset once showed as 53 min because 30% jitter was added on top.
+    expect(nextDelay(0, 41 * 60, () => 1)).toBe(41 * 60_000 + 5000);
+    expect(nextDelay(0, 10, () => 1)).toBe(13_000);
+    expect(nextDelay(0, 41 * 60, () => 0)).toBe(41 * 60_000);
+  });
   it('formats waits plainly and never as 0', () => {
     expect(formatWait(0)).toBe('1s');
     expect(formatWait(-500)).toBe('1s');
