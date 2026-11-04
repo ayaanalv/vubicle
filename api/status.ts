@@ -7,7 +7,7 @@ export function GET() {
     {
       ok: Boolean(c.geminiKey || c.groqKey),
       gemini: { configured: Boolean(c.geminiKey), models: c.geminiModels, embedModel: c.geminiEmbedModel },
-      groq: { configured: Boolean(c.groqKey), model: c.groqModel },
+      groq: { configured: Boolean(c.groqKey), model: c.groqModel, visionModel: c.groqVisionModel },
       rateLimitStore: c.redisUrl && c.redisToken ? 'upstash' : 'memory',
       hourlyCap: c.hourlyCap,
     },

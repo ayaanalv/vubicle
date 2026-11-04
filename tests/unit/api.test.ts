@@ -5,6 +5,7 @@ import { hit, memoryStore, personKey } from '../../api/_lib/ratelimit';
 import { plan, extractJson, BadRequest } from '../../api/_lib/tasks';
 import { handleAi, handleEmbed, originAllowed } from '../../api/_lib/handler';
 import { config } from '../../api/_lib/config';
+import { GET as status } from '../../api/status';
 
 const prompt = () => ({ system: 's', user: 'u', json: true, maxTokens: 10, temperature: 0 });
 const fake = (name: string, impl: () => Promise<string>): Provider => ({ name, generate: vi.fn(impl) });
@@ -351,6 +352,18 @@ describe('handler', () => {
     expect(photo.status).toBe(200);
     await handleAi(req(chat), { ...deps, failover: { sleep: async () => {}, cooldowns: new Map() } });
     expect(models).toEqual(['qwen/qwen3.8-27b', 'openai/gpt-oss-120b']);
+  });
+
+  it('status lists every model in use and never a key', async () => {
+    const env = process.env;
+    process.env = { ...env, GEMINI_API_KEY: 'secret-g', GROQ_API_KEY: 'secret-q' };
+    try {
+      const text = await status().text();
+      expect(JSON.parse(text).groq).toEqual({ configured: true, model: 'openai/gpt-oss-120b', visionModel: 'qwen/qwen3.8-27b' });
+      expect(text).not.toContain('secret');
+    } finally {
+      process.env = env;
+    }
   });
 
   it('says when no keys are configured', async () => {
