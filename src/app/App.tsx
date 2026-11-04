@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { MessagesSquare, GraduationCap, Layers, ListChecks, Network, CalendarDays, FolderOpen, MoreHorizontal, Plus, Download, Upload, Trash2, Sun, Moon, Monitor, ShieldCheck, Pencil, Home } from 'lucide-react';
+import { MessagesSquare, GraduationCap, Layers, FileText, ListChecks, Network, CalendarDays, FolderOpen, MoreHorizontal, Plus, Download, Upload, Trash2, Sun, Moon, Monitor, ShieldCheck, Pencil, Home } from 'lucide-react';
 import { byCubicle, cubicles, db, put, uid, useLive, type Cubicle } from './db';
 import { Dialog, LineBadge, Menu } from './ui';
 import { Files } from './Files';
@@ -8,19 +8,21 @@ import { Cards } from './Cards';
 import { QuizTool } from './Quiz';
 import { MapTool } from './MapView';
 import { Deadlines } from './Deadlines';
+import { Briefs } from './Briefs';
 import { Viewer } from './Viewer';
 import { Timer } from './Timer';
 import { PrivacyGate, PrivacyText } from './Privacy';
 import { exportCubicle, importBackup, DeleteCubicle } from './Backup';
 import { embedPending, storageErrorMessage } from './ingest';
 
-export type Tool = 'chat' | 'tutor' | 'cards' | 'quiz' | 'map' | 'deadlines';
+export type Tool = 'chat' | 'tutor' | 'cards' | 'quiz' | 'map' | 'briefs' | 'deadlines';
 const TOOLS: { id: Tool; name: string; icon: typeof Layers }[] = [
   { id: 'chat', name: 'Chat', icon: MessagesSquare },
   { id: 'tutor', name: 'Tutor', icon: GraduationCap },
   { id: 'cards', name: 'Flashcards', icon: Layers },
   { id: 'quiz', name: 'Quiz', icon: ListChecks },
   { id: 'map', name: 'Concept map', icon: Network },
+  { id: 'briefs', name: 'Briefs', icon: FileText },
   { id: 'deadlines', name: 'Deadlines', icon: CalendarDays },
 ];
 
@@ -409,6 +411,8 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
                 <QuizTool />
               ) : tool === 'map' ? (
                 <MapTool />
+              ) : tool === 'briefs' ? (
+                <Briefs />
               ) : (
                 <Deadlines />
               )}

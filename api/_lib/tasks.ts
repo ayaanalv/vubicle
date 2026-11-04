@@ -9,7 +9,7 @@ export interface Passage {
   text: string;
 }
 
-const TASKS = ['chat', 'tutor', 'flashcards', 'quiz', 'grade', 'map', 'deadlines'] as const;
+const TASKS = ['chat', 'tutor', 'flashcards', 'quiz', 'grade', 'map', 'deadlines', 'brief'] as const;
 export type Task = (typeof TASKS)[number];
 export const isTask = (t: unknown): t is Task => TASKS.includes(t as Task);
 
@@ -75,6 +75,31 @@ const GRADED_WORK = `Graded work: decide from the current question only. If it a
 - The concepts that make it hard, one line each.
 - An offer to review their own code or draft against the spec if they paste it, or to quiz them in Tutor mode.
 Questions that only ask to understand the work are not graded work: answer them normally, set "gradedWork" to false, and do not say you won't write anything. Examples that are fine: "What am I meant to do for this assignment?", "Explain part 2", "How should I approach this?", "What is a linked list?", "Is my code correct?" (feedback on their own work). Examples that are graded work: "Solve this assignment", "Write the code for me", "Give me the answer to question 3", "Write my essay". If unsure, answer normally.`;
+
+// ---- briefs ---------------------------------------------------------------
+
+type BriefFormat = 'summary' | 'guide' | 'terms';
+type BriefLength = 'short' | 'medium' | 'long';
+
+const BRIEF_TOKENS: Record<BriefLength, number> = { short: 600, medium: 1400, long: 2600 };
+
+const BRIEF_FORMATS: Record<BriefFormat, Record<BriefLength, string>> = {
+  summary: {
+    short: 'Write a short summary: 4 to 6 bullet points, one sentence each, covering only the main ideas. About 100 words.',
+    medium: 'Write a summary with one short **bold** title per main topic, each followed by 2 to 4 sentences. About 300 to 400 words.',
+    long: 'Write a detailed summary, section by section. Each section has a short **bold** title, a paragraph explaining the ideas, then a "- " list of the definitions, formulas or examples the material gives. About 700 to 900 words.',
+  },
+  guide: {
+    short: 'Write a short study guide with three parts, each under a **bold** title: "Main ideas" (3 to 4 bullets), "Know these terms" (4 to 5 terms, each "**term**: one line definition"), "Check yourself" (3 questions the material answers, without answers).',
+    medium: 'Write a study guide with three parts, each under a **bold** title: "Main ideas" (5 to 7 bullets), "Know these terms" (8 to 10 terms, each "**term**: one line definition"), "Check yourself" (5 questions the material answers, each followed by a one line answer in *italics*).',
+    long: 'Write a full study guide with four parts, each under a **bold** title: "Main ideas" (one short paragraph per main topic), "Know these terms" (12 to 15 terms, each "**term**: definition"), "Common mistakes" (3 to 5 points where students go wrong, only if the material supports them), "Check yourself" (8 questions the material answers, each followed by a short answer in *italics*).',
+  },
+  terms: {
+    short: 'List the 8 most important terms as a "- " list, each "**term**: one line definition".',
+    medium: 'List the 15 most important terms, formulas or named ideas as a "- " list, each "**term**: a one or two line definition".',
+    long: 'List up to 25 terms, formulas and named ideas as a "- " list, grouped under short **bold** topic titles, each "**term**: a definition and, when the material gives one, an example".',
+  },
+};
 
 export interface TaskPlan {
   prompt: (contextChars: number) => Prompt;
@@ -284,6 +309,35 @@ ${JSON_ONLY} Shape: {"topics": [{"id": "t1", "label": "...", "summary": "...", "
             .filter((l: any) => ids.has(l.from) && ids.has(l.to) && l.from !== l.to)
             .slice(0, 40);
           return { topics, links };
+        },
+      };
+    }
+
+    case 'brief': {
+      const ps = passages(body.passages, 40, 1000);
+      const format = str(body.format, 'format', 20);
+      const length = str(body.length, 'length', 20);
+      if (!Object.hasOwn(BRIEF_FORMATS, format)) throw new BadRequest('format is invalid');
+      if (!Object.hasOwn(BRIEF_TOKENS, length)) throw new BadRequest('length is invalid');
+      const f = format as BriefFormat;
+      const l = length as BriefLength;
+      return {
+        prompt: (ctx) => ({
+          system: `You write a study brief of one file from a student's course material, from passages sampled in order across the whole file.
+${GROUNDING}
+${BRIEF_FORMATS[f][l]}
+Follow the order of the material. Put a citation like [2] right after each point, using the passage numbers. Cite only passages you used.
+You may use **bold**, *italics*, "- " and "1." lists, and \`inline code\`. For a section title, use a short **bold** line on its own, not # headings. Do not add a title for the whole brief or a closing remark.
+${JSON_ONLY} Shape: {"text": "..."}`,
+          user: `Passages:\n${numbered(ps, ctx)}`,
+          json: true,
+          maxTokens: BRIEF_TOKENS[l],
+          temperature: 0.3,
+        }),
+        parse: (r: any) => {
+          const text = cleanStr(r?.text, 12000);
+          need(text.length >= 20, 'text missing');
+          return { text };
         },
       };
     }

@@ -219,6 +219,30 @@ test('concept map topics lead to the other tools', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Open source 1' })).toBeVisible();
 });
 
+test('briefs cover each chosen file, cite their pages, and are saved', async ({ page }) => {
+  await setUp(page);
+  await addFiles(page, [
+    { name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' },
+    { name: 'slides.pptx', buffer: buf(slides) },
+  ]);
+  await expect(page.getByText('2 slides', { exact: false })).toBeVisible();
+  await expect(page.getByText('2 pages', { exact: false })).toBeVisible();
+  await page.getByRole('tab', { name: 'Briefs' }).click();
+  await expect(page.getByRole('checkbox', { name: 'lecture4.pdf' })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'slides.pptx' })).toBeChecked();
+  await page.getByLabel('Length').selectOption('short');
+  await page.getByRole('button', { name: 'Write a brief' }).click();
+  await expect(page.getByRole('heading', { name: 'Summary' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'lecture4.pdf' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'slides.pptx' })).toBeVisible();
+  await page.locator('section.brief', { has: page.getByRole('heading', { name: 'lecture4.pdf' }) }).getByRole('button', { name: 'Open source 1' }).first().click();
+  const viewer = page.getByRole('complementary', { name: 'Source' });
+  await expect(viewer.getByRole('heading', { name: 'lecture4.pdf' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'All briefs' }).click();
+  await expect(page.getByRole('button', { name: /^Summary: (lecture4, slides|slides, lecture4)$/ })).toBeVisible();
+});
+
 test('deadlines are found, edited, and exported to a calendar', async ({ page }) => {
   await setUp(page);
   await addFiles(page, [{ name: 'syllabus.docx', buffer: buf(syllabus) }]);

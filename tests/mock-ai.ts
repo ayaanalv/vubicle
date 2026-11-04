@@ -69,6 +69,8 @@ export function mockAi(body: any): unknown {
         topics: ps.slice(0, 6).map((p, i) => ({ id: `t${i + 1}`, label: p.text.split(/\s+/).slice(0, 3).join(' '), summary: first(p.text), sources: [i + 1] })),
         links: ps.slice(1, 6).map((_, i) => ({ from: `t${i + 1}`, to: `t${i + 2}`, label: 'leads to' })),
       };
+    case 'brief':
+      return { text: `**${body.format === 'terms' ? 'Terms' : 'Main ideas'}**\n\n- ${first(ps[0]?.text ?? '')} [1]${ps[1] ? `\n- ${first(ps[1].text)} [2]` : ''}` };
     case 'deadlines':
       return {
         items: [

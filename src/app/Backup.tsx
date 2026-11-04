@@ -9,10 +9,10 @@ const FORMAT = 'vubicle-backup';
 const VERSION = 1;
 
 export async function backupBytes(c: Cubicle): Promise<Uint8Array> {
-  const [files, blobs, chunks, cards, quizzes, chats, maps, deadlines] = await Promise.all(PER_CUBICLE.map((s) => byCubicle(s, c.id)));
+  const [files, blobs, chunks, cards, quizzes, chats, maps, deadlines, briefs] = await Promise.all(PER_CUBICLE.map((s) => byCubicle(s, c.id)));
   const entries: Record<string, Uint8Array> = {};
   for (const b of blobs as { id: string; data: Blob }[]) entries[`files/${b.id}`] = new Uint8Array(await b.data.arrayBuffer());
-  const manifest = { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), cubicle: c, files, chunks, cards, quizzes, chats, maps, deadlines };
+  const manifest = { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), cubicle: c, files, chunks, cards, quizzes, chats, maps, deadlines, briefs };
   entries['vubicle.json'] = strToU8(JSON.stringify(manifest));
   return zipSync(entries, { level: 6 });
 }
@@ -87,6 +87,14 @@ export async function importBackup(file: File): Promise<Cubicle> {
   for (const mp of m.maps)
     await tx.objectStore('maps').put({ ...mp, id: uid(), cubicleId, fileId: fk(mp.fileId), topics: isArr(mp.topics) ? mp.topics.map((t: any) => ({ ...t, chunkIds: isArr(t.chunkIds) ? t.chunkIds.map(ck).filter(Boolean) : [] })) : [], links: isArr(mp.links) ? mp.links : [] });
   for (const dl of m.deadlines) await tx.objectStore('deadlines').put({ ...dl, id: uid(), cubicleId, chunkId: ck(dl.chunkId) });
+  // Backups made before briefs existed have none.
+  for (const b of isArr(m.briefs) ? m.briefs : [])
+    await tx.objectStore('briefs').put({
+      ...b,
+      id: uid(),
+      cubicleId,
+      parts: isArr(b.parts) ? b.parts.map((p: any) => ({ ...p, fileId: fk(p.fileId) ?? '', text: String(p.text ?? ''), chunkIds: isArr(p.chunkIds) ? p.chunkIds.map((id: unknown) => ck(id) ?? '') : [] })) : [],
+    });
   await tx.done;
   changed('cubicles');
   PER_CUBICLE.forEach(changed);
@@ -99,7 +107,7 @@ export function DeleteCubicle({ cubicle, open, onClose }: { cubicle: Cubicle; op
     <Dialog open={open} onClose={onClose} label={`Delete ${cubicle.name}`}>
       <div className="dialog">
         <h2>Delete {cubicle.name}?</h2>
-        <p>This removes its files, flashcards, quizzes, chats and deadlines from this browser. It cannot be undone, so export a backup first if you might want it later.</p>
+        <p>This removes its files, flashcards, quizzes, chats, briefs and deadlines from this browser. It cannot be undone, so export a backup first if you might want it later.</p>
         <div className="actions">
           <button className="btn" onClick={onClose}>
             Cancel
