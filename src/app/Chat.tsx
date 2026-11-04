@@ -250,7 +250,7 @@ function Bubble({ m, onAsk, onDraft }: { m: Message; onAsk?: (q: string) => void
   );
 }
 
-function SourceChips({ ids, nums }: { ids: string[]; nums: number[] }) {
+export function SourceChips({ ids, nums }: { ids: string[]; nums: number[] }) {
   const { openSource } = useDesk();
   const chunks = useLive(() => getChunks(nums.map((n) => ids[n - 1])), ['chunks'], [ids.join(), nums.join()]);
   const names = useLive(async () => {

@@ -115,6 +115,19 @@ export interface Deadline {
   createdAt: number;
 }
 
+export type BriefFormat = 'summary' | 'guide' | 'terms';
+export type BriefLength = 'short' | 'medium' | 'long';
+
+/** One brief covers one or more files; each file gets its own part from its own AI call. */
+export interface Brief {
+  id: string;
+  cubicleId: string;
+  format: BriefFormat;
+  length: BriefLength;
+  parts: { fileId: string; name: string; text: string; chunkIds: string[] }[];
+  createdAt: number;
+}
+
 interface Schema extends DBSchema {
   cubicles: { key: string; value: Cubicle };
   files: { key: string; value: StoredFile; indexes: { cubicle: string } };
@@ -126,27 +139,30 @@ interface Schema extends DBSchema {
   chats: { key: string; value: Chat; indexes: { cubicle: string } };
   maps: { key: string; value: MapData; indexes: { cubicle: string } };
   deadlines: { key: string; value: Deadline; indexes: { cubicle: string } };
+  briefs: { key: string; value: Brief; indexes: { cubicle: string } };
   /** Cached AI answers, so asking the same thing twice costs nothing. */
   cache: { key: string; value: { key: string; value: unknown; at: number } };
 }
 
-export type Store = 'cubicles' | 'files' | 'blobs' | 'chunks' | 'cards' | 'quizzes' | 'chats' | 'maps' | 'deadlines';
-export const PER_CUBICLE: Exclude<Store, 'cubicles'>[] = ['files', 'blobs', 'chunks', 'cards', 'quizzes', 'chats', 'maps', 'deadlines'];
+export type Store = 'cubicles' | 'files' | 'blobs' | 'chunks' | 'cards' | 'quizzes' | 'chats' | 'maps' | 'deadlines' | 'briefs';
+export const PER_CUBICLE: Exclude<Store, 'cubicles'>[] = ['files', 'blobs', 'chunks', 'cards', 'quizzes', 'chats', 'maps', 'deadlines', 'briefs'];
 
 let dbp: Promise<IDBPDatabase<Schema>> | undefined;
 export function db() {
   // Opened inside a promise: a browser that blocks storage can throw the moment indexedDB is touched, and
   // that must become a rejection the app can explain, not an exception that blanks the page.
   dbp ??= Promise.resolve().then(() =>
-    openDB<Schema>('vubicle', 1, {
+    // Version 2 added briefs. Upgrades only create the stores that are missing, so existing data stays.
+    openDB<Schema>('vubicle', 2, {
       upgrade(d) {
-        d.createObjectStore('cubicles', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('cubicles')) d.createObjectStore('cubicles', { keyPath: 'id' });
         for (const s of PER_CUBICLE) {
+          if (d.objectStoreNames.contains(s)) continue;
           const os = d.createObjectStore(s, { keyPath: 'id' });
           os.createIndex('cubicle', 'cubicleId');
           if (s === 'chunks') (os as unknown as IDBObjectStore).createIndex('file', 'fileId');
         }
-        d.createObjectStore('cache', { keyPath: 'key' });
+        if (!d.objectStoreNames.contains('cache')) d.createObjectStore('cache', { keyPath: 'key' });
       },
     }),
   );

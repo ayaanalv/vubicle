@@ -1497,3 +1497,29 @@ code.code-block {
     right: 0;
   }
 }
+
+/* ---------- briefs ---------- */
+.brief-files {
+  display: grid;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.brief-files legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+.brief-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.brief {
+  display: grid;
+  gap: 12px;
+  padding: 0 0 24px;
+}
+.brief + .brief {
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}

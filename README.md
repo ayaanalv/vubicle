@@ -73,6 +73,10 @@ The tutor asks **one question at a time** and judges each answer as correct, par
 
 A map of the course's main topics and how they relate, drawn with a small force-directed layout written for this project. Every topic is a button. Picking one shows its summary and how it connects, with shortcuts to **ask about it, get quizzed on it, make flashcards**, or read its source passages.
 
+### Briefs
+
+Pick up to five files, a format (summary, study guide or key terms) and a length (short, medium or long). Each file gets its own brief, written from passages sampled evenly across the whole file, with every point linked to its page or slide. Briefs are saved, so rereading one costs nothing.
+
 ### Deadline finder
 
 ![Deadlines found in a course outline: assignments, a midterm, quizzes, lab reports and a final exam, with dates, weights and kinds in an editable table; the midterm is flagged as in 3 days](docs/screenshots/deadlines.jpg)
@@ -203,7 +207,7 @@ chat  gemini-3.5-flash-lite=timeout/15s > gemini-3.8-flash=429/0.2s > openai/gpt
 
 The student got an answer instead of a wait. A unit test replays that exact sequence.
 
-**The server owns the prompts.** The browser sends a task name (`chat`, `tutor`, `flashcards`, `quiz`, `grade`, `map`, `deadlines`) and passages, never a prompt. That keeps the endpoint from becoming a free general-purpose chatbot, and lets the server check every model output against the shape it asked for: quiz questions need exactly 4 options and a valid answer index, scores are clamped to quarters, dates must be real `YYYY-MM-DD` dates, and citation numbers must point at a passage that was sent.
+**The server owns the prompts.** The browser sends a task name (`chat`, `tutor`, `flashcards`, `quiz`, `grade`, `map`, `brief`, `deadlines`) and passages, never a prompt. That keeps the endpoint from becoming a free general-purpose chatbot, and lets the server check every model output against the shape it asked for: quiz questions need exactly 4 options and a valid answer index, scores are clamped to quarters, dates must be real `YYYY-MM-DD` dates, and citation numbers must point at a passage that was sent.
 
 Code: [`api/_lib/failover.ts`](api/_lib/failover.ts), [`api/_lib/providers.ts`](api/_lib/providers.ts), [`api/_lib/tasks.ts`](api/_lib/tasks.ts), [`api/_lib/handler.ts`](api/_lib/handler.ts)
 
@@ -236,7 +240,7 @@ Code: [`src/app/api.ts`](src/app/api.ts), [`src/app/ui.tsx`](src/app/ui.tsx), [`
 
 ### 5. Smaller decisions
 
-- **Nothing is generated twice.** Flashcards, quizzes, concept maps and deadline lists are saved in IndexedDB. Identical chat questions, short-answer grading and syllabus scans are cached by a hash of the request. Reviewing and retaking cost no API calls.
+- **Nothing is generated twice.** Flashcards, quizzes, concept maps, briefs and deadline lists are saved in IndexedDB. Identical chat questions, short-answer grading and syllabus scans are cached by a hash of the request. Reviewing and retaking cost no API calls.
 - **AI output is never rendered as HTML.** A small renderer turns paragraphs, `- ` lists, `**bold**` and `[n]` citations into React elements. Nothing from a model reaches `innerHTML`.
 - **Parsing without a DOM.** PPTX and DOCX are zip files of XML. They're unzipped with `fflate` and read with targeted patterns rather than `DOMParser`, which keeps the parsers small and testable in Node. pdf.js is loaded only when a PDF is added.
 - **A landing page that stays light.** The landing page is static HTML: the painted hero art (AVIF, 36 to 67 KB) plus about 5 KB of gzipped script that adds a canvas motion layer and a live search demo. The demo runs the same BM25 code as the app, on a sample lecture, with no AI call.
@@ -275,6 +279,7 @@ Code: [`src/app/api.ts`](src/app/api.ts), [`src/app/ui.tsx`](src/app/ui.tsx), [`
 - quiz grading and retakes;
 - the tutor;
 - the concept map handing off to chat;
+- briefs for two files, with citations opening the right file;
 - the deadline export (`.ics` contents checked);
 - a backup round trip through delete and import;
 - no horizontal scrolling and no controls pushed off screen on a phone;
