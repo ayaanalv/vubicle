@@ -346,4 +346,4 @@ art/                       source illustrations; `npm run art` makes the AVIF/We
 
 ---
 
-Built by **Ayaan Alvi**, Computer Science (AI) at the University of Guelph. The illustrations were made by Ayaan with Gemini.
+Built by **Ayaan Alvi**, Computer Science (AI) at the University of Guelph. The illustrations were generated with Google Gemini.
