@@ -33,6 +33,12 @@ describe('graded work', () => {
     expect(system).toMatch(/Cite only passages you actually used/);
     expect(system).toMatch(/never set "covered" to false for it/);
   });
+  it('keeps questions about understanding the work out of the rule (the real model over-applied it once)', () => {
+    const { system } = p.prompt(10_000);
+    expect(system).toMatch(/decide from the current question only/);
+    expect(system).toMatch(/"What am I meant to do for this assignment\?"/);
+    expect(system).toMatch(/If unsure, answer normally/);
+  });
   it('never shows "not in your material" for a declined request, even if the model says so', () => {
     expect(p.parse({ covered: false, gradedWork: true, answer: 'I won’t write it.' })).toEqual({ covered: true, gradedWork: true, answer: 'I won’t write it.' });
     expect(p.parse({ covered: false, answer: 'Not covered.' })).toEqual({ covered: false, gradedWork: false, answer: 'Not covered.' });

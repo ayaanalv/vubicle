@@ -65,6 +65,15 @@ describe('lists, emphasis and citations', () => {
     expect(out).toContain('<strong>Bold</strong> and <em>italic</em> and <strong>also bold</strong> and <em>also italic</em>.');
     expect(out).toContain(`<ol start="3"><li>third</li><li>fourth ${chip(1)}${chip(2)}</li></ol>`);
   });
+  it('turns # headings into bold title lines, not literal hashes', () => {
+    const out = html('### Plan\n1. Read the file [1]\n\n## Difficult `concepts`', { max: 1 });
+    expect(out).toContain('<p class="rich-h"><strong>Plan</strong></p>');
+    expect(out).toContain(`<ol><li>Read the file ${chip(1)}</li></ol>`);
+    expect(out).toContain('<p class="rich-h"><strong>Difficult <code class="code-inline">concepts</code></strong></p>');
+    expect(out).not.toContain('#');
+    // A hash inside code or mid-line is left alone.
+    expect(html('Use `#include` and C# here')).toContain('<code class="code-inline">#include</code> and C# here');
+  });
   it('does not mistake maths or snake_case for italics', () => {
     const out = html('2 * 3 * 4 = 24 and my_var_name stays.');
     expect(out).toContain('2 * 3 * 4 = 24 and my_var_name stays.');

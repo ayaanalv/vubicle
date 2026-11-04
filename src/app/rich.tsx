@@ -7,9 +7,12 @@ import { Check, Copy } from 'lucide-react';
 export type Block =
   | { type: 'code'; lang: string; code: string }
   | { type: 'p'; lines: string[] }
+  | { type: 'h'; text: string }
   | { type: 'ul' | 'ol'; items: string[]; start?: number };
 
 const FENCE = /^(\s*)(`{3,}|~{3,})\s*([\w+#.-]*)\s*$/;
+// Models often write "### Plan" even when asked not to; it becomes a bold title line, not literal hashes.
+const HEADING = /^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/;
 const BULLET = /^\s*[-*•]\s+/;
 const NUMBER = /^\s*(\d+)[.)]\s+/;
 
@@ -48,6 +51,11 @@ export function parseBlocks(text: string): Block[] {
 function splitLists(lines: string[]): Block[] {
   const out: Block[] = [];
   for (const line of lines) {
+    const heading = line.match(HEADING);
+    if (heading) {
+      out.push({ type: 'h', text: heading[1] });
+      continue;
+    }
     const kind = BULLET.test(line) ? 'ul' : NUMBER.test(line) ? 'ol' : null;
     const last = out[out.length - 1];
     if (kind) {
@@ -122,7 +130,7 @@ export function inlineNodes(text: string, opts: InlineOptions = {}, keyPrefix = 
 /** Citation numbers used in the text, in order of first use. Brackets inside code (`arr[1]`) don't count. */
 export function citedNumbers(text: string): number[] {
   const prose = parseBlocks(text)
-    .flatMap((b) => (b.type === 'code' ? [] : b.type === 'p' ? b.lines : b.items))
+    .flatMap((b) => (b.type === 'code' ? [] : b.type === 'p' ? b.lines : b.type === 'h' ? [b.text] : b.items))
     .join('\n')
     .replace(/(?<!`)(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/g, ' ');
   const nums = [...prose.matchAll(/\[(\d+(?:\s*,\s*\d+)*)\]/g)].flatMap((x) => x[1].split(',').map((n) => Number(n.trim())));
@@ -171,6 +179,12 @@ export function Rich({ text, onCite, max, inline = false, className }: { text: s
                 {b.code}
               </code>
             );
+          if (b.type === 'h')
+            return (
+              <strong key={key} className="rich-line">
+                {inlineNodes(b.text, opts, key)}
+              </strong>
+            );
           const lines = b.type === 'p' ? b.lines : b.items.map((it, j) => `${b.type === 'ol' ? `${(b.start ?? 1) + j}.` : '•'} ${it}`);
           return (
             <span key={key} className="rich-line">
@@ -196,6 +210,12 @@ export function Rich({ text, onCite, max, inline = false, className }: { text: s
             </div>
           );
         if (b.type === 'p') return <p key={key}>{lineNodes(b.lines, opts, key)}</p>;
+        if (b.type === 'h')
+          return (
+            <p key={key} className="rich-h">
+              <strong>{inlineNodes(b.text, opts, key)}</strong>
+            </p>
+          );
         const items = b.items.map((it, j) => <li key={j}>{inlineNodes(it, opts, `${key}-${j}`)}</li>);
         return b.type === 'ul' ? (
           <ul key={key}>{items}</ul>

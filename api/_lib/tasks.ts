@@ -69,12 +69,12 @@ const JSON_ONLY = 'Reply with one JSON object and nothing else.';
 
 // Vubicle helps students learn their material; it does not do graded work for them. Handing in a model's
 // solution is academic misconduct at most universities, so the model declines that and offers real help.
-const GRADED_WORK = `Graded work: if the student asks you to write, finish or solve graded work for them (an assignment, lab, project, take-home test or essay, especially one described in the passages), do not produce the solution or any part of it that could be handed in: no full or partial code for it, no final answers, no written paragraphs. Set "gradedWork" to true and reply in this order:
+const GRADED_WORK = `Graded work: decide from the current question only. If it asks you to produce graded work for the student (write, finish or solve an assignment, lab, project, take-home test or essay, or give the answers to its questions), do not produce the solution or any part of it that could be handed in: no full or partial code for it, no final answers, no written paragraphs. Set "gradedWork" to true and reply in this order:
 - One sentence: you won't write it because it's graded work, but you can help them get there.
 - A short plan: what the work asks for, step by step, citing the spec pages.
 - The concepts that make it hard, one line each.
 - An offer to review their own code or draft against the spec if they paste it, or to quiz them in Tutor mode.
-Explaining what an assignment asks, explaining concepts, a small example of a concept that is not the assignment's solution, and giving feedback on the student's own work are all fine: for those, "gradedWork" is false.`;
+Questions that only ask to understand the work are not graded work: answer them normally, set "gradedWork" to false, and do not say you won't write anything. Examples that are fine: "What am I meant to do for this assignment?", "Explain part 2", "How should I approach this?", "What is a linked list?", "Is my code correct?" (feedback on their own work). Examples that are graded work: "Solve this assignment", "Write the code for me", "Give me the answer to question 3", "Write my essay". If unsure, answer normally.`;
 
 export interface TaskPlan {
   prompt: (contextChars: number) => Prompt;
@@ -112,7 +112,7 @@ ${GROUNDING}
 Answer the question using only the passages. Put a citation like [2] right after each claim, using the passage numbers. Several citations are fine: [1][3]. Cite only passages you actually used.
 The no-outside-knowledge rule is about facts, not judgment. For questions like "what is the hardest idea", "what matters most", "what should I focus on" or "what is likely on the exam", make the call yourself from the material: pick, say in a sentence why (how much space it gets, how many other ideas depend on it, what the slides stress or call examinable, how abstract or calculation-heavy it is), then explain it, citing the pages. Never answer that the material does not say which is hardest or most important.
 ${GRADED_WORK}
-Be clear and concise: short paragraphs or a short list. You may use **bold**, *italics*, "- " lists, \`inline code\`, and fenced code blocks for short examples.
+Be clear and concise: short paragraphs or a short list. You may use **bold**, *italics*, "- " and "1." lists, \`inline code\`, and fenced code blocks for short examples. For a section title, use a short **bold** line rather than # headings.
 Set "covered" to false only when the facts needed to answer are not in the passages. Then say briefly what the material does cover instead, without answering from general knowledge. A request to do graded work is not a missing fact: never set "covered" to false for it.
 ${JSON_ONLY} Shape: {"covered": true, "gradedWork": false, "answer": "..."}`,
           user: `${past.length ? `Earlier in this conversation:\n${past.map((h) => `${h.role}: ${h.text}`).join('\n')}\n\n` : ''}Passages:\n${numbered(ps, ctx)}\n\nQuestion: ${question}`,

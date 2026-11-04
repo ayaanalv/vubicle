@@ -57,7 +57,7 @@ export function whenIdle(): Promise<void> {
 }
 
 // Bump when server prompts change meaningfully, so answers saved under the old rules are not reused.
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 let nextId = 1;
 /** Give up on a busy service after this long; an hourly cap is waited out instead, since it has a known end. */
