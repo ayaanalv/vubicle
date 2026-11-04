@@ -3,7 +3,7 @@ import { X, FileSearch } from 'lucide-react';
 import { db, useLive } from './db';
 import { loadPdfJs } from './ingest';
 
-/** Shows a cited passage in context: the passage, its neighbours, and for PDFs the page itself. */
+/** Shows a cited passage in context: the passage, its neighbours, and the PDF page or photo it came from. */
 export function Viewer({ chunkId, all, onPick, onClose }: { chunkId: string; all: string[]; onPick: (id: string) => void; onClose: () => void }) {
   const data = useLive(
     async () => {
@@ -62,7 +62,13 @@ export function Viewer({ chunkId, all, onPick, onClose }: { chunkId: string; all
                 <FileSearch aria-hidden="true" /> {showPage ? 'Hide the page' : `Show ${data.c.label} as printed`}
               </button>
             )}
-            {showPage && data.file && <PdfPage fileId={data.file.id} page={data.c.page} />}
+            {data.file?.kind === 'image' && (
+              <button className="btn sm" onClick={() => setShowPage(!showPage)} aria-expanded={showPage}>
+                <FileSearch aria-hidden="true" /> {showPage ? 'Hide the photo' : 'Show the photo'}
+              </button>
+            )}
+            {showPage && data.file?.kind === 'pdf' && <PdfPage fileId={data.file.id} page={data.c.page} />}
+            {showPage && data.file?.kind === 'image' && <Photo fileId={data.file.id} name={data.file.name} />}
             {data.before.map((b) => (
               <div key={b.id} className="passage near">
                 {b.text}
@@ -119,4 +125,21 @@ function PdfPage({ fileId, page }: { fileId: string; page: number }) {
       <canvas ref={canvas} className="page-canvas" hidden={state !== 'ok'} aria-label={`Page ${page} of the PDF`} role="img" />
     </>
   );
+}
+
+function Photo({ fileId, name }: { fileId: string; name: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    let u = '';
+    db()
+      .then((d) => d.get('blobs', fileId))
+      .then((b) => (b ? setUrl((u = URL.createObjectURL(b.data))) : setMissing(true)))
+      .catch(() => setMissing(true));
+    return () => {
+      if (u) URL.revokeObjectURL(u);
+    };
+  }, [fileId]);
+  if (missing) return <p className="muted small">The photo could not be loaded.</p>;
+  return url ? <img className="page-canvas" src={url} alt={`The photo ${name}`} /> : null;
 }

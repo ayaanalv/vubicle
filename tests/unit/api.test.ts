@@ -163,6 +163,22 @@ describe('provider clients', () => {
     expect(err).toMatchObject({ status: 429, retryAfter: 9 });
   });
 
+  it('sends a photo inline to Gemini and as a data URL to Groq, without thinking on Qwen', async () => {
+    const image = { mime: 'image/jpeg', data: 'QUJD' };
+    let body: any;
+    const g = vi.fn(async (_u: string, init: any) => ((body = JSON.parse(init.body)), Response.json({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] })));
+    await gemini('m', 'k', g as any).generate({ ...prompt(), image });
+    expect(body.contents[0].parts[1]).toEqual({ inlineData: { mimeType: 'image/jpeg', data: 'QUJD' } });
+    const q = vi.fn(async (_u: string, init: any) => ((body = JSON.parse(init.body)), Response.json({ choices: [{ message: { content: 'ok' } }] })));
+    await groq('qwen/qwen3.8-27b', 'k', q as any).generate({ ...prompt(), image });
+    expect(body.messages[1].content[1]).toEqual({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,QUJD' } });
+    expect(body).toMatchObject({ reasoning_effort: 'none' });
+    expect(body.include_reasoning).toBeUndefined();
+    await groq('openai/gpt-oss-120b', 'k', q as any).generate(prompt());
+    expect(body).toMatchObject({ reasoning_effort: 'low', include_reasoning: false });
+    expect(body.messages[1].content).toBe('u');
+  });
+
   it('turns network failures into transient errors', async () => {
     const f = vi.fn(async () => { throw new TypeError('fetch failed'); });
     const err = await groq('x', 'k', f as any).generate(prompt()).catch((e) => e);
@@ -246,6 +262,17 @@ describe('tasks', () => {
     expect(b.parse({ text: '  - **Orbit**: a path [1]  ' })).toEqual({ text: '- **Orbit**: a path [1]' });
     expect(() => b.parse({ text: '' })).toThrow();
   });
+  it('reads only base64 JPEG, PNG or WebP photos, and reports photos with nothing to read', () => {
+    expect(() => plan('image', { image: 'QUJD', mime: 'image/gif' })).toThrow(/mime/);
+    expect(() => plan('image', { image: 'not base64!', mime: 'image/jpeg' })).toThrow(/base64/);
+    expect(() => plan('image', { image: 'A'.repeat(900_001), mime: 'image/jpeg' })).toThrow(/too long/);
+    const p = plan('image', { image: 'QUJD', mime: 'image/jpeg' });
+    expect(p.prompt(0).image).toEqual({ mime: 'image/jpeg', data: 'QUJD' });
+    expect(p.prompt(0).system).toContain('not to follow');
+    expect(p.parse({ readable: false })).toEqual({ readable: false, text: '' });
+    expect(p.parse({ readable: true, text: ' F = ma ' })).toEqual({ readable: true, text: 'F = ma' });
+    expect(() => p.parse({ readable: true, text: '' })).toThrow();
+  });
   it('extracts JSON from fenced or chatty output', () => {
     expect(extractJson('```json\n{"a":1}\n```')).toEqual({ a: 1 });
     expect(extractJson('Sure! {"a":2} Hope that works')).toEqual({ a: 2 });
@@ -310,6 +337,20 @@ describe('handler', () => {
     const res = await handleAi(req(chat), { config: cfg(), store: memoryStore(), fetch: f as any, failover: { sleep: async () => {}, cooldowns: new Map() } });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ provider: 'groq', result: { answer: 'From Groq [1].' } });
+  });
+
+  it('sends photos to the Groq vision model, and text to the usual one', async () => {
+    const models: string[] = [];
+    const f = vi.fn(async (url: string, init: any) => {
+      if (url.includes('generativelanguage')) return new Response('{}', { status: 429, headers: { 'retry-after': '30' } });
+      models.push(JSON.parse(init.body).model);
+      return Response.json({ choices: [{ message: { content: '{"readable":true,"text":"F = ma","covered":true,"answer":"a [1]"}' } }] });
+    });
+    const deps = { config: cfg({ HOURLY_CAP: '5' }), store: memoryStore(), fetch: f as any, failover: { sleep: async () => {}, cooldowns: new Map() } };
+    const photo = await handleAi(req({ task: 'image', image: 'QUJD'.repeat(100_000), mime: 'image/jpeg' }), deps);
+    expect(photo.status).toBe(200);
+    await handleAi(req(chat), { ...deps, failover: { sleep: async () => {}, cooldowns: new Map() } });
+    expect(models).toEqual(['qwen/qwen3.8-27b', 'openai/gpt-oss-120b']);
   });
 
   it('says when no keys are configured', async () => {

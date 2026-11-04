@@ -2,7 +2,7 @@
 // ("p. 4", "Slide 7", a heading). Runs in the browser; nothing is uploaded.
 import { unzipSync, strFromU8 } from 'fflate';
 
-export type FileKind = 'pdf' | 'pptx' | 'docx' | 'note';
+export type FileKind = 'pdf' | 'pptx' | 'docx' | 'note' | 'image';
 
 export interface Section {
   /** What a citation shows, e.g. "p. 4" or "Slide 7". */
@@ -19,6 +19,8 @@ export interface Parsed {
 
 /** An error whose message is safe and helpful to show the student as is. */
 export class FileError extends Error {}
+
+export const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
 
 const OLE_MAGIC = [0xd0, 0xcf, 0x11, 0xe0];
 
@@ -38,7 +40,8 @@ export function detectKind(name: string, bytes: Uint8Array): FileKind {
   if (ext === 'pptx') return 'pptx';
   if (ext === 'docx') return 'docx';
   if (['txt', 'md', 'markdown'].includes(ext)) return 'note';
-  throw new FileError(`"${name}" is not a file type Vubicle can read. Use PDF, PowerPoint (.pptx), Word (.docx) or a text file.`);
+  if (IMAGE_EXTS.includes(ext)) return 'image';
+  throw new FileError(`"${name}" is not a file type Vubicle can read. Use PDF, PowerPoint (.pptx), Word (.docx), a text file or a photo (.jpg, .png, .webp, .heic).`);
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };

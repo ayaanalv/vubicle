@@ -1,14 +1,14 @@
 import { useRef, useState } from 'react';
-import { FileText, Presentation, FileType2, NotebookPen, Upload, Trash2, AlertCircle, Loader2, X } from 'lucide-react';
+import { FileText, Presentation, FileType2, NotebookPen, Image, Upload, Trash2, AlertCircle, Loader2, X } from 'lucide-react';
 import { deleteFile, type Cubicle, type StoredFile } from './db';
 import { addFile, addNote, storageErrorMessage } from './ingest';
 import { Dialog } from './ui';
 
-const ICONS = { pdf: FileText, pptx: Presentation, docx: FileType2, note: NotebookPen };
-const UNIT = { pdf: 'pages', pptx: 'slides', docx: 'sections', note: 'sections' };
+const ICONS = { pdf: FileText, pptx: Presentation, docx: FileType2, note: NotebookPen, image: Image };
+const UNIT = { pdf: 'pages', pptx: 'slides', docx: 'sections', note: 'sections', image: 'photos' };
 
 function meta(f: StoredFile) {
-  if (f.status === 'reading') return `Reading${f.progress ? ` ${Math.round(f.progress * 100)}%` : ''}`;
+  if (f.status === 'reading') return f.kind === 'image' ? 'The AI is reading the photo' : `Reading${f.progress ? ` ${Math.round(f.progress * 100)}%` : ''}`;
   if (f.status === 'error') return 'Could not read';
   const n = `${f.sections ?? 0} ${f.sections === 1 ? UNIT[f.kind].slice(0, -1) : UNIT[f.kind]}`;
   const search = f.vectors === 'done' ? 'smart search ready' : f.vectors === 'off' ? 'keyword search' : 'search ready';
@@ -58,7 +58,8 @@ export function Files({ cubicle, files, onDone }: { cubicle: Cubicle; files: Sto
         <button className="btn sm" onClick={() => setNoting(true)}>
           <NotebookPen aria-hidden="true" /> Write or paste notes
         </button>
-        <p>Or drop files here. PDF, PowerPoint (.pptx), Word (.docx) or text.</p>
+        <p>Or drop files here. PDF, PowerPoint (.pptx), Word (.docx), text or photos.</p>
+        <p className="small">Photos are read by the AI, so the whole photo is sent to Gemini or Groq.</p>
         {storageProblem && (
           <p className="notice bad" role="alert">
             {storageProblem}
@@ -71,7 +72,7 @@ export function Files({ cubicle, files, onDone }: { cubicle: Cubicle; files: Sto
           className="sr-only"
           tabIndex={-1}
           aria-hidden="true"
-          accept=".pdf,.pptx,.docx,.ppt,.doc,.txt,.md,application/pdf"
+          accept=".pdf,.pptx,.docx,.ppt,.doc,.txt,.md,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,image/*"
           onChange={(e) => {
             add(e.target.files);
             e.target.value = '';
