@@ -13,3 +13,7 @@ for (const file of (await readdir('art')).filter((f) => f.endsWith('.jpg'))) {
   }
   console.log('done', name);
 }
+
+// Link previews (Open Graph): 1200x630 JPEG, the size and format every network accepts.
+await sharp('art/hero.jpg').resize(1200, 630, { fit: 'cover' }).jpeg({ quality: 82, mozjpeg: true }).toFile('public/art/share.jpg');
+console.log('done share');

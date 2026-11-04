@@ -630,6 +630,72 @@ input {
   font-size: var(--s-small);
 }
 
+/* Plain pages (privacy, 404): the bar sits in the flow and the text runs in one readable column. */
+.plain .bar {
+  position: static;
+}
+.doc {
+  max-width: 72ch;
+  padding: clamp(32px, 6vw, 88px) var(--margin) var(--section);
+}
+.doc h1 {
+  font-size: var(--s-l);
+  margin-bottom: 28px;
+}
+.doc h2 {
+  font-size: var(--s-m);
+  margin: 56px 0 16px;
+  line-height: 1.1;
+}
+.doc p + p,
+.doc ul + p,
+.doc p + ul {
+  margin-top: 16px;
+}
+.doc ul {
+  display: grid;
+  gap: 14px;
+  padding-left: 1.2em;
+}
+.doc a:not(.button) {
+  color: var(--gold);
+  text-underline-offset: 3px;
+}
+.doc-lede {
+  font-size: clamp(19px, 1.6vw, 22px);
+  color: var(--paper);
+}
+.doc-date {
+  color: var(--paper-muted);
+  font-size: var(--s-small);
+}
+.doc-back {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  margin-top: 56px;
+}
+.doc-code {
+  font: 600 clamp(96px, 18vw, 220px) / 0.9 var(--display);
+  letter-spacing: -0.05em;
+  color: var(--violet);
+  padding-bottom: 0.1em;
+}
+.doc-missing {
+  min-height: 70svh;
+}
+.plain-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 28px var(--margin);
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-size: var(--s-small);
+}
+
 /* Entrances: content is visible without script; the script adds .pre then removes it. */
 .pre {
   opacity: 0;

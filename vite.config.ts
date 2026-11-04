@@ -50,6 +50,9 @@ export default defineConfig({
       input: {
         landing: resolve(import.meta.dirname, 'index.html'),
         app: resolve(import.meta.dirname, 'app/index.html'),
+        privacy: resolve(import.meta.dirname, 'privacy/index.html'),
+        // Vercel serves 404.html for any path with no file.
+        notFound: resolve(import.meta.dirname, '404.html'),
       },
     },
   },

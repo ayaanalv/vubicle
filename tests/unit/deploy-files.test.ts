@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 
 // Reads .vercelignore with git's own gitignore matching. Vercel uses the same pattern rules.
 function ignored(paths: string[]): string[] {
@@ -23,5 +24,26 @@ describe('.vercelignore', () => {
   });
   it('still leaves the root source art and screenshots out of uploads', () => {
     expect(ignored(['art/hero.jpg', 'docs/screenshots/chat.jpg'])).toEqual(['art/hero.jpg', 'docs/screenshots/chat.jpg']);
+  });
+});
+
+describe('search and link previews', () => {
+  const read = (f: string) => readFileSync(f, 'utf8');
+  it('points link previews at a full URL for an image that ships', () => {
+    const html = read('index.html');
+    const img = html.match(/property="og:image" content="([^"]+)"/)?.[1];
+    expect(img).toMatch(/^https:\/\/vubicle\.com\//);
+    expect(existsSync('public' + new URL(img!).pathname)).toBe(true);
+    expect(html).toContain('name="twitter:card" content="summary_large_image"');
+  });
+  it('lists only pages that exist in the sitemap, and points robots.txt at it', () => {
+    const pages = [...read('public/sitemap.xml').matchAll(/<loc>https:\/\/vubicle\.com\/([^<]*)<\/loc>/g)].map((m) => m[1]);
+    expect(pages.length).toBeGreaterThan(0);
+    for (const p of pages) expect(existsSync(p ? `${p}index.html` : 'index.html')).toBe(true);
+    expect(read('public/robots.txt')).toContain('Sitemap: https://vubicle.com/sitemap.xml');
+  });
+  it('keeps the workspace and the 404 page out of search results', () => {
+    expect(read('app/index.html')).toContain('<meta name="robots" content="noindex" />');
+    expect(read('404.html')).toContain('<meta name="robots" content="noindex" />');
   });
 });
