@@ -15,6 +15,8 @@ describe('detectKind', () => {
     expect(detectKind('noext', new TextEncoder().encode('%PDF-1.7'))).toBe('pdf');
     expect(detectKind('a.PPTX', new Uint8Array())).toBe('pptx');
     expect(detectKind('a.docx', new Uint8Array())).toBe('docx');
+    expect(detectKind('board.JPG', new Uint8Array())).toBe('image');
+    expect(detectKind('IMG_0042.heic', new Uint8Array())).toBe('image');
     expect(() => detectKind('a.xlsx', new Uint8Array())).toThrow(/not a file type/);
   });
 });

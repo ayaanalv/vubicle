@@ -219,6 +219,33 @@ test('concept map topics lead to the other tools', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Open source 1' })).toBeVisible();
 });
 
+test('photos are read by the AI once, then studied and cited like any file', async ({ page }) => {
+  const sent: any[] = [];
+  page.on('request', (r) => r.url().endsWith('/api/ai') && sent.push(r.postDataJSON()));
+  await setUp(page);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEklEQVR4nGP4z8CAFWEXHbQSACj/P8Fu7N9hAAAAAElFTkSuQmCC', 'base64');
+  await addFiles(page, [{ name: 'whiteboard.png', buffer: png, mimeType: 'image/png' }]);
+  await expect(page.getByText('1 photo ·', { exact: false })).toBeVisible();
+  // The browser redraws the photo as a JPEG before sending it.
+  expect(sent[0]).toMatchObject({ task: 'image', mime: 'image/jpeg' });
+  expect(Buffer.from(sent[0].image, 'base64').subarray(0, 3)).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
+  await page.getByLabel('Ask about your material').fill('What does Kepler’s second law say?');
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  await page.getByRole('button', { name: 'Open source 1' }).click();
+  const viewer = page.getByRole('complementary', { name: 'Source' });
+  await expect(viewer.getByRole('heading', { name: 'whiteboard.png' })).toBeVisible();
+  await viewer.getByRole('button', { name: 'Show the photo' }).click();
+  await expect(viewer.getByRole('img', { name: 'The photo whiteboard.png' })).toBeVisible();
+});
+
+test('a photo with nothing to read says so', async ({ page }) => {
+  await setUp(page);
+  await page.route('**/api/ai', (route) => route.fulfill({ json: { result: { readable: false, text: '' }, provider: 'mock' } }));
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEklEQVR4nGP4z8CAFWEXHbQSACj/P8Fu7N9hAAAAAElFTkSuQmCC', 'base64');
+  await addFiles(page, [{ name: 'cat.png', buffer: png, mimeType: 'image/png' }]);
+  await expect(page.getByText('"cat.png" has no text or diagrams Vubicle could read.')).toBeVisible();
+});
+
 test('briefs cover each chosen file, cite their pages, and are saved', async ({ page }) => {
   await setUp(page);
   await addFiles(page, [

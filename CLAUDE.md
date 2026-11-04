@@ -28,6 +28,7 @@ Opt-in browser suites skip unless set: `SHOTS=1` (design screenshots), `README_S
 ## Decisions to keep
 
 - Cloud AI only, free tiers only, keys only on the server; the browser never sends a prompt.
+- Photos are the one file sent whole: the browser shrinks them to a 1600 px JPEG and the `image` task transcribes them once at upload. Groq reads them with `GROQ_VISION_MODEL` (same key), not `GROQ_MODEL`.
 - Grounding applies to facts, not judgment ("hardest idea", "what to focus on" get answered from the material).
 - Chat declines to write graded work (assignments, labs, essays) and offers a plan, concepts, code review or Tutor instead. Questions about understanding the work are answered normally. Keep this; it was tested against the real model.
 - Model text is rendered only through `src/app/rich.tsx` (never `innerHTML`; a unit test enforces it). Use `inline` mode inside buttons and labels.

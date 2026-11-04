@@ -4,7 +4,7 @@ import './polyfills';
 import { detectKind, parsePptx, parseDocx, parseNote, parsePdf, FileError, type Parsed } from '../lib/parse';
 import { chunkSections } from '../lib/chunk';
 import { db, put, uid, changed, type StoredFile } from './db';
-import { embed, whenIdle } from './api';
+import { ai, embed, whenIdle, AiError } from './api';
 
 /** Pause between embedding batches. A 200-page course is about ten batches, so indexing takes a minute or two. */
 const EMBED_GAP_MS = 8_000;
@@ -22,6 +22,67 @@ export function loadPdfJs() {
     return lib;
   });
   return pdfjsP;
+}
+
+/** Longest side of a photo sent to the AI: enough for small handwriting, small enough to send quickly. */
+const PHOTO_SIDE = 1600;
+
+/** Decodes a photo and redraws it as a JPEG of at most PHOTO_SIDE pixels on its longest side. */
+async function shrinkPhoto(name: string, bytes: Uint8Array, type: string): Promise<Blob> {
+  const src = new Blob([bytes as Uint8Array<ArrayBuffer>], { type });
+  let img: ImageBitmap | HTMLImageElement;
+  try {
+    img = await createImageBitmap(src);
+  } catch {
+    // Safari decodes HEIC in <img> but not always in createImageBitmap.
+    const url = URL.createObjectURL(src);
+    try {
+      img = new Image();
+      img.src = url;
+      await img.decode();
+    } catch {
+      throw new FileError(
+        /\.(heic|heif)$/i.test(name)
+          ? `This browser can’t open "${name}", an iPhone HEIC photo. Open Vubicle in Safari, or set iPhone Settings > Camera > Formats to Most Compatible and take the photo again.`
+          : `"${name}" could not be opened as an image. It may be damaged.`,
+      );
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  const scale = Math.min(1, PHOTO_SIDE / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.width * scale));
+  canvas.height = Math.max(1, Math.round(img.height * scale));
+  const g = canvas.getContext('2d')!;
+  // White under transparent PNGs, so a screenshot with no background doesn't turn black as a JPEG.
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.drawImage(img, 0, 0, canvas.width, canvas.height);
+  if ('close' in img) img.close();
+  const out = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
+  if (!out) throw new FileError(`"${name}" could not be prepared for reading. Try a smaller photo.`);
+  return out;
+}
+
+const toBase64 = async (b: Blob) => {
+  const bytes = new Uint8Array(await b.arrayBuffer());
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+};
+
+/** Photos have no text to pull out, so the AI reads them once: the whole (shrunk) photo is sent. */
+async function readPhoto(name: string, photo: Blob): Promise<Parsed> {
+  let out: { readable: boolean; text: string };
+  try {
+    out = await ai('image', { image: await toBase64(photo), mime: 'image/jpeg' }, { label: `Reading ${name}` });
+  } catch (e) {
+    if (e instanceof AiError) throw new FileError(`"${name}" could not be read: ${e.message}`);
+    throw e;
+  }
+  if (!out.readable) throw new FileError(`"${name}" has no text or diagrams Vubicle could read.`);
+  return { kind: 'image', sections: [{ label: 'Photo', page: 1, text: out.text }] };
 }
 
 async function store(file: StoredFile, parsed: Parsed, blob?: Blob) {
@@ -77,6 +138,7 @@ export async function addFile(cubicleId: string, f: File) {
     const bytes = new Uint8Array(await f.arrayBuffer());
     const kind = detectKind(f.name, bytes);
     rec.kind = kind;
+    if (kind === 'image') await put('files', rec);
     let parsed: Parsed;
     if (kind === 'pdf') {
       const pdfjs = await loadPdfJs();
@@ -88,12 +150,23 @@ export async function addFile(cubicleId: string, f: File) {
           put('files', { ...rec, progress: done / total }).catch(() => {});
         }
       });
+    } else if (kind === 'image') {
+      // Only the shrunk JPEG is kept: it is what the AI read, and every browser can show it.
+      const photo = await shrinkPhoto(f.name, bytes, f.type);
+      parsed = await readPhoto(f.name, photo);
+      // Reading can wait in line for minutes; if the student removed the file meanwhile, keep it removed.
+      if (!(await (await db()).get('files', rec.id))) return;
+      await store(rec, parsed, photo);
+      void embedPending(cubicleId);
+      return;
     } else if (kind === 'pptx') parsed = parsePptx(f.name, bytes);
     else if (kind === 'docx') parsed = parseDocx(f.name, bytes);
     else parsed = parseNote(f.name, new TextDecoder().decode(bytes));
     await store(rec, parsed, new Blob([bytes], { type: f.type || 'application/octet-stream' }));
     void embedPending(cubicleId);
   } catch (e) {
+    // Removed while it was being read: don't bring it back as an error row.
+    if (!(await (await db()).get('files', rec.id).catch(() => true))) return;
     if (!(e instanceof FileError)) console.error(e);
     const message =
       e instanceof FileError

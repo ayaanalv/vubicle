@@ -7,6 +7,8 @@ export interface Prompt {
   json: boolean;
   maxTokens: number;
   temperature: number;
+  /** A photo to read, base64 without the data: prefix. Only the image task sends one. */
+  image?: { mime: string; data: string };
 }
 
 export class ProviderError extends Error {
@@ -74,7 +76,7 @@ export function gemini(model: string, key: string, f: Fetch = fetch, thinkingLev
   const call = async (p: Prompt, signal: AbortSignal | undefined, thinking: boolean) => {
     const body = {
       systemInstruction: { parts: [{ text: p.system }] },
-      contents: [{ role: 'user', parts: [{ text: p.user }] }],
+      contents: [{ role: 'user', parts: [{ text: p.user }, ...(p.image ? [{ inlineData: { mimeType: p.image.mime, data: p.image.data } }] : [])] }],
       generationConfig: {
         temperature: p.temperature,
         maxOutputTokens: p.maxTokens,
@@ -119,7 +121,8 @@ export function groq(model: string, key: string, f: Fetch = fetch): Provider {
   return {
     name,
     async generate(p, signal) {
-      const reasoning = /gpt-oss|qwen3/i.test(model);
+      // Groq documents include_reasoning for GPT-OSS only; Qwen takes reasoning_effort "none" to skip thinking.
+      const reasoning = /gpt-oss/i.test(model) ? { reasoning_effort: 'low', include_reasoning: false } : /qwen3/i.test(model) ? { reasoning_effort: 'none' } : {};
       const data = await send(name, f, 'https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
@@ -127,12 +130,15 @@ export function groq(model: string, key: string, f: Fetch = fetch): Provider {
           model,
           messages: [
             { role: 'system', content: p.system },
-            { role: 'user', content: p.user },
+            {
+              role: 'user',
+              content: p.image ? [{ type: 'text', text: p.user }, { type: 'image_url', image_url: { url: `data:${p.image.mime};base64,${p.image.data}` } }] : p.user,
+            },
           ],
           temperature: p.temperature,
           max_tokens: p.maxTokens,
           ...(p.json ? { response_format: { type: 'json_object' } } : {}),
-          ...(reasoning ? { reasoning_effort: 'low', include_reasoning: false } : {}),
+          ...reasoning,
         }),
         signal,
       });

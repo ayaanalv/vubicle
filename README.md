@@ -41,7 +41,7 @@ Vubicle is that idea rebuilt for real classmates:
 
 ### Cubicles and files
 
-Each course gets its own cubicle. Students add **PDF, PowerPoint (.pptx), Word (.docx)** files or typed notes, and every file is read **in the browser**, with a progress bar. Studying can start as soon as the first file is stored. Old `.ppt`/`.doc` files and scanned PDFs (pages that are pictures, with no text) get a specific message saying what to do instead, such as "save it as .pptx" or "run it through text recognition first".
+Each course gets its own cubicle. Students add **PDF, PowerPoint (.pptx), Word (.docx)** files or typed notes, and every file is read **in the browser**, with a progress bar. Studying can start as soon as the first file is stored. Photos (`.jpg`, `.png`, `.webp`, `.heic`) are the one exception to reading in the browser: they have no text, so the browser shrinks each one to 1600 px and the AI transcribes it once, describing any diagrams in words. Gemini reads it first, then Groq's vision model (`GROQ_VISION_MODEL`, same key) when Gemini is busy. Old `.ppt`/`.doc` files and scanned PDFs (pages that are pictures, with no text) get a specific message saying what to do instead, such as "save it as .pptx" or "run it through text recognition first".
 
 ### Chat with citations
 
@@ -207,7 +207,7 @@ chat  gemini-3.5-flash-lite=timeout/15s > gemini-3.8-flash=429/0.2s > openai/gpt
 
 The student got an answer instead of a wait. A unit test replays that exact sequence.
 
-**The server owns the prompts.** The browser sends a task name (`chat`, `tutor`, `flashcards`, `quiz`, `grade`, `map`, `brief`, `deadlines`) and passages, never a prompt. That keeps the endpoint from becoming a free general-purpose chatbot, and lets the server check every model output against the shape it asked for: quiz questions need exactly 4 options and a valid answer index, scores are clamped to quarters, dates must be real `YYYY-MM-DD` dates, and citation numbers must point at a passage that was sent.
+**The server owns the prompts.** The browser sends a task name (`chat`, `tutor`, `flashcards`, `quiz`, `grade`, `map`, `brief`, `deadlines`, `image`) and passages, never a prompt. That keeps the endpoint from becoming a free general-purpose chatbot, and lets the server check every model output against the shape it asked for: quiz questions need exactly 4 options and a valid answer index, scores are clamped to quarters, dates must be real `YYYY-MM-DD` dates, and citation numbers must point at a passage that was sent.
 
 Code: [`api/_lib/failover.ts`](api/_lib/failover.ts), [`api/_lib/providers.ts`](api/_lib/providers.ts), [`api/_lib/tasks.ts`](api/_lib/tasks.ts), [`api/_lib/handler.ts`](api/_lib/handler.ts)
 

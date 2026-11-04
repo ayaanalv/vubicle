@@ -71,6 +71,8 @@ export function mockAi(body: any): unknown {
       };
     case 'brief':
       return { text: `**${body.format === 'terms' ? 'Terms' : 'Main ideas'}**\n\n- ${first(ps[0]?.text ?? '')} [1]${ps[1] ? `\n- ${first(ps[1].text)} [2]` : ''}` };
+    case 'image':
+      return { readable: true, text: 'Kepler’s second law: a line from the Sun to a planet sweeps out equal areas in equal times.\nDiagram: an ellipse with the Sun at one focus and two shaded wedges of equal area.' };
     case 'deadlines':
       return {
         items: [

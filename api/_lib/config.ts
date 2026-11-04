@@ -8,6 +8,8 @@ export function config(env: NodeJS.ProcessEnv = process.env) {
     geminiModels: list(env.GEMINI_MODELS, 'gemini-3.5-flash-lite,gemini-3.8-flash'),
     geminiEmbedModel: env.GEMINI_EMBED_MODEL || 'gemini-embedding-001',
     groqModel: env.GROQ_MODEL || 'openai/gpt-oss-120b',
+    // Reads photos when Gemini is busy. Same Groq key; this model has its own rate limits.
+    groqVisionModel: env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b',
     // Upstash via the Vercel Marketplace sets KV_REST_API_*; a direct Upstash database uses UPSTASH_REDIS_REST_*.
     redisUrl: env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL || '',
     redisToken: env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN || '',

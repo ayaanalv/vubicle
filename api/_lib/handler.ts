@@ -23,7 +23,8 @@ export function defaultDeps(): Deps {
   return { config, store: defaultStore, log: (e) => console.log(JSON.stringify(e)) };
 }
 
-const MAX_BODY = 300_000;
+// Room for one photo the browser has shrunk to about 400 KB (base64 adds a third). Each task checks its own fields.
+const MAX_BODY = 1_000_000;
 
 const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   Response.json(body, { status, headers: { 'cache-control': 'no-store', ...headers } });
@@ -52,11 +53,11 @@ async function readBody(req: Request, c: Config): Promise<{ body?: any; error?: 
   }
 }
 
-function candidates(c: Config, f: Fetch | undefined): Candidate[] {
+function candidates(c: Config, f: Fetch | undefined, vision = false): Candidate[] {
   const out: Candidate[] = [];
   // Gemini's free tier takes long prompts; Groq's free tier has a small tokens-per-minute budget, so send it less.
   if (c.geminiKey) for (const m of c.geminiModels) out.push({ provider: gemini(m, c.geminiKey, f, c.geminiThinking), contextChars: 40_000 });
-  if (c.groqKey) out.push({ provider: groq(c.groqModel, c.groqKey, f), contextChars: 12_000 });
+  if (c.groqKey) out.push({ provider: groq(vision ? c.groqVisionModel : c.groqModel, c.groqKey, f), contextChars: 12_000 });
   return out;
 }
 
@@ -77,7 +78,7 @@ export async function handleAi(req: Request, deps: Deps): Promise<Response> {
     throw e;
   }
 
-  const list = candidates(c, deps.fetch);
+  const list = candidates(c, deps.fetch, body.task === 'image');
   if (!list.length) return json(503, { error: 'config', message: 'The AI service is not set up yet.' });
 
   const quota = await hit(store, personKey(clientIp(req), c.ipSalt), c.hourlyCap);
