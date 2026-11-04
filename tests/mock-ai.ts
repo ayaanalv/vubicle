@@ -11,6 +11,21 @@ export function mockAi(body: any): unknown {
     case 'chat': {
       const q: string = body.question ?? '';
       if (/mona lisa|weather/i.test(q)) return { covered: false, answer: 'Your material does not cover that. It covers ' + ps.map((p) => p.label).slice(0, 2).join(' and ') + '.' };
+      // What the prompt asks for when a student wants their graded work done for them.
+      if (/solve this assignment|write (out )?the code for me|do my assignment/i.test(q))
+        return {
+          covered: true,
+          gradedWork: true,
+          answer: [
+            'I won’t write your assignment for you, since it’s graded work, but I can help you get there.',
+            '',
+            '**The plan**',
+            '1. Read the input file format [1]',
+            '2. Build the linked list in order [2]',
+            '',
+            'Paste your code and I’ll check it against the spec, or try Tutor mode.',
+          ].join('\n'),
+        };
       // The shape of a real reply that showed literal backticks on the live site, plus a block and a list.
       if (/hardest idea/i.test(q))
         return {

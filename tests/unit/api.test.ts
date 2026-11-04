@@ -195,7 +195,7 @@ describe('rate limit', () => {
 describe('tasks', () => {
   it('rejects requests without passages or with oversized input', () => {
     expect(() => plan('chat', { question: 'hi' })).toThrow(BadRequest);
-    expect(() => plan('chat', { question: 'x'.repeat(2000), passages: [{ label: 'p', text: 't' }] })).toThrow(/too long/);
+    expect(() => plan('chat', { question: 'x'.repeat(5000), passages: [{ label: 'p', text: 't' }] })).toThrow(/too long/);
     expect(() => plan('flashcards', { passages: [{ label: 'p', text: 't' }], count: 500 })).toThrow(/count/);
   });
   it('keeps the prompt on the server and passages inside it as data', () => {

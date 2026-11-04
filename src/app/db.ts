@@ -76,6 +76,8 @@ export interface Message {
   /** Passage number in the answer → chunk id. */
   cites?: string[];
   covered?: boolean;
+  /** The student asked Vubicle to do graded work; it declined and offered help instead. */
+  gradedWork?: boolean;
   verdict?: string;
   at: number;
 }

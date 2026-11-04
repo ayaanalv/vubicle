@@ -19,6 +19,7 @@ export function ChatTool({ mode }: { mode: 'chat' | 'tutor' }) {
   const [draft, setDraft] = useState('');
   const [topic, setTopic] = useState('');
   const end = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const abort = useRef<AbortController | null>(null);
 
   const chat = currentId === 'new' ? undefined : chats?.find((c) => c.id === currentId) ?? chats?.[0];
@@ -73,8 +74,8 @@ export function ChatTool({ mode }: { mode: 'chat' | 'tutor' }) {
       }
       const names = await fileNames(cubicle.id);
       const history = c.messages.slice(-7, -1).map((m) => ({ role: m.role === 'student' ? 'student' : 'tutor', text: m.text.slice(0, 2000) }));
-      const out = await ai<{ covered: boolean; answer: string }>('chat', { question: q, passages: toPassages(found, names), history }, { label: ANSWERING, cache: history.length === 0, signal });
-      await save(c, { role: 'assistant', text: out.answer, covered: out.covered, cites: found.map((x) => x.id), at: Date.now() });
+      const out = await ai<{ covered: boolean; gradedWork?: boolean; answer: string }>('chat', { question: q, passages: toPassages(found, names), history }, { label: ANSWERING, cache: history.length === 0, signal });
+      await save(c, { role: 'assistant', text: out.answer, covered: out.covered, gradedWork: out.gradedWork || undefined, cites: found.map((x) => x.id), at: Date.now() });
     });
 
   const tutor = (request: 'continue' | 'hint' | 'reveal', answer?: string, start?: Chat) =>
@@ -152,7 +153,17 @@ export function ChatTool({ mode }: { mode: 'chat' | 'tutor' }) {
           ) : !chat?.messages.length && !busy ? (
             <ChatStart onAsk={ask} />
           ) : (
-            chat?.messages.map((m, i) => <Bubble key={i} m={m} />)
+            chat?.messages.map((m, i) => (
+              <Bubble
+                key={i}
+                m={m}
+                onAsk={busy ? undefined : ask}
+                onDraft={(text) => {
+                  setDraft(text);
+                  input.current?.focus();
+                }}
+              />
+            ))
           )}
           {busy && <Working label={mode === 'chat' ? ANSWERING : TUTORING} />}
           {error && (
@@ -180,11 +191,12 @@ export function ChatTool({ mode }: { mode: 'chat' | 'tutor' }) {
               {mode === 'chat' ? 'Ask about your material' : 'Your answer'}
             </label>
             <textarea
+              ref={input}
               id={`${mode}-input`}
               className="input"
               rows={1}
               value={draft}
-              maxLength={1000}
+              maxLength={mode === 'chat' ? 4000 : 1000}
               placeholder={mode === 'chat' ? 'Ask about your material' : 'Type your answer'}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -201,8 +213,8 @@ export function ChatTool({ mode }: { mode: 'chat' | 'tutor' }) {
   );
 }
 
-function Bubble({ m }: { m: Message }) {
-  const { openSource } = useDesk();
+function Bubble({ m, onAsk, onDraft }: { m: Message; onAsk?: (q: string) => void; onDraft: (text: string) => void }) {
+  const { openSource, go } = useDesk();
   if (m.role === 'student') return <div className="msg student">{m.text}</div>;
   const cites = m.cites ?? [];
   const used = citedNumbers(m.text).filter((n) => n <= cites.length);
@@ -214,9 +226,26 @@ function Bubble({ m }: { m: Message }) {
         {m.role === 'tutor' ? 'Tutor' : 'Vubicle'}
       </span>
       {m.verdict && m.verdict !== 'none' && <span className={`verdict ${m.verdict}`}>{m.verdict === 'correct' ? 'Correct' : m.verdict === 'partial' ? 'Partly right' : 'Not quite'}</span>}
-      {m.covered === false && <span className="verdict partial">Not in your material</span>}
+      {m.gradedWork ? (
+        <span className="verdict info">Study help, not a solution</span>
+      ) : (
+        m.covered === false && <span className="verdict partial">Not in your material</span>
+      )}
       <Rich text={m.text} onCite={open} max={cites.length} />
       {used.length > 0 && m.role === 'assistant' && <SourceChips ids={cites} nums={used} />}
+      {m.gradedWork && (
+        <div className="chips" aria-label="Ways to get help">
+          <button className="chip" disabled={!onAsk} onClick={() => onAsk?.('Break down what this assignment asks for, step by step, without solving it.')}>
+            Make me a plan
+          </button>
+          <button className="chip" onClick={() => onDraft('Here is my code so far. Check it against the assignment spec and tell me what is wrong or missing, without rewriting it:\n\n')}>
+            Review my code
+          </button>
+          <button className="chip" onClick={() => go('tutor', 'the assignment requirements')}>
+            Quiz me on it
+          </button>
+        </div>
+      )}
     </div>
   );
 }

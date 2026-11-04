@@ -277,6 +277,33 @@ for (const path of ['/', '/app/']) {
   });
 }
 
+test('chat declines to do graded work and offers study help instead', async ({ page }) => {
+  await setUp(page);
+  await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
+  await page.getByLabel('Ask about your material').fill('solve this assignment for me.');
+  await page.keyboard.press('Enter');
+  // The declined reply stays the first answer; the follow-up below adds a second one after it.
+  const msg = page.locator('.msg.ai').first();
+  await expect(msg.locator('.verdict.info')).toHaveText('Study help, not a solution');
+  await expect(msg).not.toContainText('Not in your material');
+  // Only the passages the reply cites get source chips.
+  await expect(msg.locator('.sources .source')).toHaveCount(2);
+  // "Review my code" readies the box for pasted code without sending anything.
+  await msg.getByRole('button', { name: 'Review my code' }).click();
+  const box = page.getByLabel('Ask about your material');
+  await expect(box).toBeFocused();
+  await expect(box).toHaveValue(/^Here is my code so far\./);
+  await box.fill('');
+  // "Make me a plan" asks a follow-up that is answered normally.
+  await msg.getByRole('button', { name: 'Make me a plan' }).click();
+  await expect(page.locator('.msg.student').last()).toContainText('Break down what this assignment asks for');
+  await expect(page.locator('.msg.ai')).toHaveCount(2);
+  await expect(page.locator('.msg.ai').last().locator('.verdict')).toHaveCount(0);
+  // "Quiz me on it" opens a tutor session.
+  await msg.getByRole('button', { name: 'Quiz me on it' }).click();
+  await expect(page.getByRole('tab', { name: 'Tutor' })).toHaveAttribute('aria-selected', 'true');
+});
+
 test('the focus timer starts at its full length even after the page sat idle', async ({ page }) => {
   // A controllable clock: let the timer sit paused for a while, as on the live site, then press Start.
   await page.clock.install();

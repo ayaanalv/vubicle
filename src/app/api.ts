@@ -56,6 +56,9 @@ export function whenIdle(): Promise<void> {
   });
 }
 
+// Bump when server prompts change meaningfully, so answers saved under the old rules are not reused.
+const CACHE_VERSION = 2;
+
 let nextId = 1;
 /** Give up on a busy service after this long; an hourly cap is waited out instead, since it has a known end. */
 const MAX_BUSY_WAIT_MS = 20 * 60_000;
@@ -103,7 +106,7 @@ export interface AiOptions {
 
 export async function ai<T>(task: string, body: Record<string, unknown>, opts: AiOptions): Promise<T> {
   const payload = JSON.stringify({ task, ...body });
-  const key = opts.cache ? `ai:${await hash(payload)}` : '';
+  const key = opts.cache ? `ai:v${CACHE_VERSION}:${await hash(payload)}` : '';
   if (key) {
     const hit = await cacheGet<T>(key);
     if (hit !== undefined) return hit;

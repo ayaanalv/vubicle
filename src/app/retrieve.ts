@@ -27,9 +27,13 @@ export async function findPassages(scope: Scope, query: string, limit = 8): Prom
   return ids.map((id) => byId.get(id)!).filter(Boolean);
 }
 
-/** Questions that ask for a judgment or an overview of the material rather than one fact. */
+/**
+ * Questions that ask for a judgment or an overview of the material rather than one fact, and requests about
+ * a whole assignment ("solve this assignment", "write the code for me"). Their words rarely match the spec,
+ * so keyword search alone can find nothing and the model would never see the assignment.
+ */
 export function isBroadQuestion(q: string): boolean {
-  return /\b(hardest|toughest|trickiest|most (important|difficult|confusing|tested)|key (ideas?|points?|concepts?|takeaways?)|main (ideas?|points?|topics?)|focus on|study first|prioriti[sz]e|summar(y|i[sz]e)|overview|big picture|on the (exam|test|midterm|final)|likely (to be )?(tested|asked|on)|exam|what should i know)\b/i.test(q);
+  return /\b(hardest|toughest|trickiest|most (important|difficult|confusing|tested)|key (ideas?|points?|concepts?|takeaways?)|main (ideas?|points?|topics?)|focus on|study first|prioriti[sz]e|summar(y|i[sz]e)|overview|big picture|on the (exam|test|midterm|final)|likely (to be )?(tested|asked|on)|exam|what should i know|assignments?|homework|labs?|projects?|solve|(write|code|finish|complete) (it|this|that|out|the|my)\b)/i.test(q);
 }
 
 /** Keyword hits first, then passages spread across the scope, in reading order. */

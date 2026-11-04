@@ -802,6 +802,11 @@ dialog::backdrop {
   background: var(--bad-soft);
   color: var(--bad);
 }
+/* Neutral, not a warning: declining graded work is the app working as intended. */
+.verdict.info {
+  background: var(--data-soft);
+  color: var(--data);
+}
 .composer {
   border-top: 1px solid var(--line);
   background: var(--bg);
