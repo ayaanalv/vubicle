@@ -13,6 +13,7 @@ It runs entirely on free tiers (Vercel Hobby, Google Gemini, Groq, Upstash Redis
 ## Contents
 
 - [Why I built it](#why-i-built-it)
+- [How I built it](#how-i-built-it)
 - [What it does](#what-it-does), with a screenshot of every tool
 - [Architecture](#architecture)
 - [Engineering decisions](#engineering-decisions)
@@ -36,6 +37,10 @@ Vubicle is that idea rebuilt for real classmates:
 - **Nothing to install, nothing to download.** In-browser models were ruled out because people won't wait for a multi-gigabyte download. The AI runs in the cloud behind my own serverless API.
 - **$0 to run.** Every service is on a free tier, so the system has to treat rate limits and outages as normal, not exceptional.
 - **Answers you can check.** Every claim links to the page or slide it came from. If the material doesn't cover a question, the app says so instead of guessing.
+
+## How I built it
+
+I built Vubicle with Claude Code as a pair programmer. I set the requirements and constraints (free tiers only, nothing to install, every answer cited), made the design calls, read the production logs, and decided what to fix. Claude Code wrote much of the code with me and helped work through problems like the failover incident below. I reviewed and tested every change, and the 78 unit tests and 15 browser tests are how I checked its work as well as mine.
 
 ## What it does
 
@@ -346,4 +351,4 @@ art/                       source illustrations; `npm run art` makes the AVIF/We
 
 ---
 
-Built by **Ayaan Alvi**, Computer Science (AI) at the University of Guelph. The illustrations were generated with Google Gemini.
+Built by **Ayaan Alvi**, Computer Science (AI) at the University of Guelph, working with Claude Code. The illustrations were generated with Google Gemini.
