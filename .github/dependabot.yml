@@ -1,0 +1,21 @@
+# Weekly update PRs, grouped so there is one PR per week per ecosystem rather than one per package.
+# Security fixes still arrive as soon as GitHub knows about them.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ['*']
+    ignore:
+      # Pinned to match the Playwright Docker image tag in .github/workflows/ci.yml; update both together by hand.
+      - dependency-name: '@playwright/test'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

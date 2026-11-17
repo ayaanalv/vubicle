@@ -40,7 +40,7 @@ Opt-in browser suites skip unless set: `SHOTS=1` (design screenshots), `README_S
 ## Gotchas
 
 - pdf.js: use the legacy build plus `src/app/polyfills.ts` and our worker entry `src/app/pdf.worker.ts`. The default build and the legacy build's missing `Promise.withResolvers` broke PDFs on browsers older than Chrome 147 / Safari 26.2. `tests/e2e/compat.spec.ts` covers it.
-- `@playwright/test` is pinned to an exact version that must match the CI Docker image tag.
+- `@playwright/test` is pinned to an exact version that must match the CI Docker image tag. Dependabot (`.github/dependabot.yml`) skips it for that reason; bump both by hand.
 - `.vercelignore` rules must be root-anchored (`/art`); a bare `art` also dropped `public/art` and every image 404'd.
 - `useNow` (`src/app/ui.tsx`) must return `Date.now()` each render; a stored value made the timer jump on Start.
 - Effects must not return expressions: Chrome's `scrollIntoView` returns a Promise, which crashed React.
