@@ -277,6 +277,20 @@ describe('rate limit', () => {
 });
 
 describe('tasks', () => {
+  it('accepts only easy, medium, hard or mixed flashcards, and labels every card', () => {
+    const passages = [{ label: 'Lecture.pdf, p. 1', text: 'Kepler showed that orbits are ellipses.' }];
+    for (const difficulty of ['impossible', 'EASY', 3, '', null, ['hard']]) expect(() => plan('flashcards', { passages, difficulty }), String(difficulty)).toThrow(BadRequest);
+    const out = { cards: [{ front: 'Q1', back: 'A1', source: 1, difficulty: 'easy' }, { front: 'Q2', back: 'A2', source: 1, difficulty: 'extreme' }] };
+    // One level asked for: every card gets it, whatever the model wrote.
+    const hard = plan('flashcards', { passages, difficulty: 'hard' });
+    expect(hard.prompt(40_000).system).toContain('apply a concept to a new example');
+    expect((hard.parse(out) as any).cards.map((c: any) => c.difficulty)).toEqual(['hard', 'hard']);
+    // Mixed: the model's label when it is a real level, none otherwise. A request without one means mixed.
+    const mixed = plan('flashcards', { passages });
+    expect(mixed.prompt(40_000).system).toContain('about a third of the cards at each level');
+    expect((mixed.parse(out) as any).cards.map((c: any) => c.difficulty)).toEqual(['easy', null]);
+  });
+
   it('asks for plain-text math in every task that writes text a student reads', () => {
     const passages = [{ label: 'Lecture.pdf, p. 1', text: 'v = sqrt(G M / r)' }];
     const bodies: Record<string, unknown> = {

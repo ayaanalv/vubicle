@@ -188,6 +188,36 @@ test('flashcards are generated, reviewed and rescheduled', async ({ page }) => {
   await expect(page.getByText('What is G?')).toBeVisible();
 });
 
+test('flashcards have difficulty levels, and more cards never repeat old ones', async ({ page }) => {
+  const sent: any[] = [];
+  page.on('request', (r) => r.url().endsWith('/api/ai') && sent.push(r.postDataJSON()));
+  await setUp(page);
+  await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
+  await page.getByRole('tab', { name: /Flashcards/ }).click();
+  await expect(page.getByLabel('Difficulty', { exact: true })).toHaveValue('mixed');
+  // The lecture has two passages, so ten cards cannot be made: what was made is saved, with a note.
+  await page.getByRole('button', { name: 'Make cards' }).click();
+  await expect(page.locator('.notice[role=status]')).toHaveText('Made 2 new cards. This material may be mostly covered; try Hard or upload more material.');
+  await expect(page.locator('ul.list > li')).toHaveCount(2);
+  await expect(page.locator('ul.list .level')).toHaveCount(2);
+  expect((await page.locator('ul.list .level').allTextContents()).sort()).toEqual(['Difficulty: Easy', 'Difficulty: Medium']);
+  // The same material again: both new cards would repeat old ones, so none are added and nothing is padded.
+  await page.getByLabel('Difficulty', { exact: true }).selectOption({ label: 'Hard' });
+  await page.getByRole('button', { name: 'Make cards' }).click();
+  await expect(page.locator('.notice[role=status]')).toHaveText(/^No new cards this time\./);
+  await expect(page.locator('ul.list > li')).toHaveCount(2);
+  const asks = sent.filter((b) => b.task === 'flashcards');
+  expect(asks.map((b) => b.difficulty)).toEqual(['mixed', 'hard']);
+  expect(asks[1].avoid).toHaveLength(2);
+  // A hand-written card has no difficulty, so it shows no label.
+  await page.getByRole('button', { name: 'Write a card' }).click();
+  await page.getByLabel('Front', { exact: true }).fill('What is G?');
+  await page.getByLabel('Back', { exact: true }).fill('The gravitational constant.');
+  await page.getByRole('button', { name: 'Save card' }).click();
+  await expect(page.locator('ul.list > li')).toHaveCount(3);
+  await expect(page.locator('ul.list .level')).toHaveCount(2);
+});
+
 test('quizzes grade instantly, give partial credit, and are saved for retakes', async ({ page }) => {
   await setUp(page);
   await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);

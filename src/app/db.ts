@@ -32,6 +32,8 @@ export interface StoredChunk extends Chunk {
   embedding?: number[];
 }
 
+export type CardLevel = 'easy' | 'medium' | 'hard';
+
 export interface Card extends Schedule {
   id: string;
   cubicleId: string;
@@ -39,6 +41,8 @@ export interface Card extends Schedule {
   back: string;
   chunkId?: string;
   manual: boolean;
+  /** Set on AI cards made since difficulty levels existed; older and hand-written cards have none. */
+  difficulty?: CardLevel;
   createdAt: number;
 }
 

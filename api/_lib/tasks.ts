@@ -79,6 +79,20 @@ const GRADED_WORK = `Graded work: decide from the current question only. If it a
 - An offer to review their own code or draft against the spec if they paste it, or to quiz them in Tutor mode.
 Questions that only ask to understand the work are not graded work: answer them normally, set "gradedWork" to false, and do not say you won't write anything. Examples that are fine: "What am I meant to do for this assignment?", "Explain part 2", "How should I approach this?", "What is a linked list?", "Is my code correct?" (feedback on their own work). Examples that are graded work: "Solve this assignment", "Write the code for me", "Give me the answer to question 3", "Write my essay". If unsure, answer normally.`;
 
+// ---- flashcard difficulty -------------------------------------------------
+
+/** What the browser may send. "mixed" asks for about a third of each level. */
+export const DIFFICULTIES = ['easy', 'medium', 'hard', 'mixed'] as const;
+export type Difficulty = (typeof DIFFICULTIES)[number];
+type CardLevel = Exclude<Difficulty, 'mixed'>;
+const CARD_LEVELS: CardLevel[] = ['easy', 'medium', 'hard'];
+
+const LEVEL_RULES: Record<CardLevel, string> = {
+  easy: 'Easy: recall of a single fact, term or definition that the passages state directly.',
+  medium: 'Medium: explain a concept in your own words, or connect two related ideas from the passages.',
+  hard: 'Hard: apply a concept to a new example, compare or contrast ideas, or reason through several steps. The answer must still be fully supported by the passages.',
+};
+
 // ---- briefs ---------------------------------------------------------------
 
 type BriefFormat = 'summary' | 'guide' | 'terms';
@@ -193,16 +207,25 @@ ${JSON_ONLY} Shape: {"message": "...", "verdict": "correct" | "partial" | "incor
     case 'flashcards': {
       const ps = passages(body.passages, 12);
       const count = int(body.count, 'count', 1, 20, 10);
+      // Only these four values are accepted. Missing means mixed, so a page loaded before this change still works.
+      const level = body.difficulty === undefined ? 'mixed' : body.difficulty;
+      if (!DIFFICULTIES.includes(level)) throw new BadRequest('difficulty must be easy, medium, hard or mixed');
       const avoid = (Array.isArray(body.avoid) ? body.avoid : []).slice(0, 40).map((s: unknown, i: number) => str(s, `avoid[${i}]`, 200));
+      const levels =
+        level === 'mixed'
+          ? `Mix the difficulty: about a third of the cards at each level.\n${CARD_LEVELS.map((l) => `- ${LEVEL_RULES[l]}`).join('\n')}\nSet "difficulty" on each card to the level it is.`
+          : `Every card is at this level. ${LEVEL_RULES[level as CardLevel]}\nSet "difficulty" to "${level}" on every card.`;
       return {
         prompt: (ctx) => ({
           system: `You write study flashcards from a student's course material.
 ${GROUNDING}
 ${PLAIN_MATH}
-Write up to ${count} cards. Each tests one fact, definition, formula or idea from the passages. Fronts are short questions or terms; backs are short, complete answers (under 40 words).
-Skip trivia such as course codes, dates of slides or instructor names. Do not repeat a card the student already has.
-${JSON_ONLY} Shape: {"cards": [{"front": "...", "back": "...", "source": 1}]} where source is the passage number.`,
-          user: `Passages:\n${numbered(ps, ctx)}${avoid.length ? `\n\nCards the student already has:\n${avoid.map((a: string) => `- ${a}`).join('\n')}` : ''}`,
+Write ${count} cards. If the passages hold fewer new ideas than that, write fewer: never pad with repeats. Each card tests one fact, definition, formula or idea from the passages. Fronts are short questions; backs are short, complete answers (under 50 words).
+${levels}
+Skip trivia such as course codes, dates of slides or instructor names.
+Do not repeat or rephrase any card the student already has, and do not write two cards that test the same fact. A new card must ask about something the listed cards do not.
+${JSON_ONLY} Shape: {"cards": [{"front": "...", "back": "...", "source": 1, "difficulty": "easy"}]} where source is the passage number.`,
+          user: `Passages:\n${numbered(ps, ctx)}${avoid.length ? `\n\nCards the student already has (do not repeat or rephrase these):\n${avoid.map((a: string) => `- ${a}`).join('\n')}` : ''}`,
           json: true,
           maxTokens: 2500,
           temperature: 0.3,
@@ -210,7 +233,13 @@ ${JSON_ONLY} Shape: {"cards": [{"front": "...", "back": "...", "source": 1}]} wh
         parse: (r: any) => {
           need(Array.isArray(r?.cards), 'cards missing');
           const cards = r.cards
-            .map((c: any) => ({ front: cleanStr(c?.front, 300), back: cleanStr(c?.back, 600), source: srcIndex(c?.source, ps.length) }))
+            .map((c: any) => ({
+              front: cleanStr(c?.front, 300),
+              back: cleanStr(c?.back, 600),
+              source: srcIndex(c?.source, ps.length),
+              // One level asked for: every card is that level. Mixed: the model's label, or none if it gave no valid one.
+              difficulty: level === 'mixed' ? (CARD_LEVELS.includes(c?.difficulty) ? c.difficulty : null) : level,
+            }))
             .filter((c: any) => c.front && c.back)
             .slice(0, count);
           need(cards.length, 'no usable cards');

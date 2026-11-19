@@ -52,8 +52,18 @@ export function mockAi(body: any): unknown {
       if (last?.role === 'student') return { message: `**Correct.** ${first(ps[0].text)} [1]\n\nNext question: what does passage 2 say?`, verdict: 'correct' };
       return { message: `Welcome. First question: ${first(ps[0].text).replace(/\.$/, '')}. True or false?`, verdict: 'none' };
     }
-    case 'flashcards':
-      return { cards: ps.slice(0, body.count ?? 5).map((p, i) => ({ front: `Card ${i + 1}: ${p.label}?`, back: first(p.text), source: i + 1 })) };
+    case 'flashcards': {
+      // Each front comes from its own passage, so cards differ the way real ones do (and pass the repeat check).
+      const levels = ['easy', 'medium', 'hard'];
+      return {
+        cards: ps.slice(0, body.count ?? 5).map((p, i) => ({
+          front: `What does ${p.label} say: ${first(p.text)}`,
+          back: first(p.text),
+          source: i + 1,
+          difficulty: body.difficulty && body.difficulty !== 'mixed' ? body.difficulty : levels[i % 3],
+        })),
+      };
+    }
     case 'quiz':
       return {
         questions: [

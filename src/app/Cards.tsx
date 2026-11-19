@@ -1,14 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Sparkles, Plus, Pencil, Trash2, Play, Check, BookOpen } from 'lucide-react';
-import { byCubicle, chunksFor, put, remove, uid, useLive, type Card } from './db';
+import { byCubicle, chunksFor, put, remove, uid, useLive, type Card, type CardLevel } from './db';
 import { ai, AiError } from './api';
-import { findPassages, fileNames, spread, toPassages } from './retrieve';
+import { findPassages, fileNames, byCoverage, fewestFirst, toPassages } from './retrieve';
+import { avoidList, dropRepeats } from '../lib/cards';
 import { newSchedule, review, preview, type Grade } from '../lib/srs';
 import { Working, useNow } from './ui';
 import { Rich } from './rich';
 import { useDesk } from './App';
 
 const MAKING = 'Making flashcards';
+
+type Level = CardLevel | 'mixed';
+const LEVELS: { value: Level; label: string }[] = [
+  { value: 'mixed', label: 'Mixed' },
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+];
+const LEVEL_NAME: Record<CardLevel, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+
+/** A small label with the card's difficulty. Cards made before difficulty levels existed show none. */
+function LevelTag({ card }: { card: Card }) {
+  if (!card.difficulty || !LEVEL_NAME[card.difficulty]) return null;
+  return (
+    <span className="verdict info level">
+      <span className="sr-only">Difficulty: </span>
+      {LEVEL_NAME[card.difficulty]}
+    </span>
+  );
+}
 
 function when(due: number, now: number) {
   const ms = due - now;
@@ -29,7 +50,9 @@ export function Cards() {
   const [reviewing, setReviewing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
   const [count, setCount] = useState(10);
+  const [level, setLevel] = useState<Level>('mixed');
   const [topic, setTopic] = useState('');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -45,21 +68,42 @@ export function Cards() {
   const generate = async () => {
     setBusy(true);
     setError('');
+    setNote('');
     try {
       const existing = cards ?? [];
-      const used = new Set(existing.map((c) => c.chunkId).filter(Boolean) as string[]);
+      // How many cards each passage already has, so the least covered passages go first.
+      const cardsPer = new Map<string, number>();
+      for (const c of existing) if (c.chunkId) cardsPer.set(c.chunkId, (cardsPer.get(c.chunkId) ?? 0) + 1);
       const scope = { cubicleId: cubicle.id, fileId };
-      const chunks = topic.trim() ? await findPassages(scope, topic, 10) : spread(await chunksFor(cubicle.id, fileId), 10, used);
+      const chunks = topic.trim() ? fewestFirst(await findPassages(scope, topic, 20), cardsPer, 10) : byCoverage(await chunksFor(cubicle.id, fileId), cardsPer, 10);
       if (!chunks.length) throw new AiError(`Nothing in your material matches “${topic}”.`);
       const names = await fileNames(cubicle.id);
-      const out = await ai<{ cards: { front: string; back: string; source: number | null }[] }>(
+      const out = await ai<{ cards: { front: string; back: string; source: number | null; difficulty?: CardLevel | null }[] }>(
         'flashcards',
-        { passages: toPassages(chunks, names), count, avoid: existing.slice(-40).map((c) => c.front.slice(0, 200)) },
+        { passages: toPassages(chunks, names), count, difficulty: level, avoid: avoidList(existing, new Set(chunks.map((c) => c.id))) },
         { label: MAKING },
       );
+      // Still one request: cards that repeat an existing one (or each other) are dropped, never replaced.
+      const fresh = dropRepeats(out.cards, existing);
       const t = Date.now();
-      for (const c of out.cards)
-        await put('cards', { id: uid(), cubicleId: cubicle.id, front: c.front, back: c.back, chunkId: c.source ? chunks[c.source - 1]?.id : undefined, manual: false, createdAt: t, ...newSchedule(t) });
+      for (const c of fresh)
+        await put('cards', {
+          id: uid(),
+          cubicleId: cubicle.id,
+          front: c.front,
+          back: c.back,
+          chunkId: c.source ? chunks[c.source - 1]?.id : undefined,
+          manual: false,
+          difficulty: c.difficulty ?? undefined,
+          createdAt: t,
+          ...newSchedule(t),
+        });
+      if (fresh.length < count)
+        setNote(
+          fresh.length
+            ? `Made ${fresh.length} new card${fresh.length === 1 ? '' : 's'}. This material may be mostly covered; try Hard or upload more material.`
+            : 'No new cards this time. This material may be mostly covered; try Hard or upload more material.',
+        );
       setTopic('');
     } catch (e) {
       setError(e instanceof AiError ? e.message : 'Those cards could not be made. Try again.');
@@ -122,6 +166,16 @@ export function Cards() {
               </option>
             ))}
           </select>
+          <label className="sr-only" htmlFor="card-level">
+            Difficulty
+          </label>
+          <select id="card-level" className="input" style={{ width: 'auto' }} value={level} onChange={(e) => setLevel(e.target.value as Level)}>
+            {LEVELS.map((l) => (
+              <option key={l.value} value={l.value}>
+                {l.label}
+              </option>
+            ))}
+          </select>
           <button className="btn primary" disabled={busy}>
             <Sparkles aria-hidden="true" /> Make cards
           </button>
@@ -129,6 +183,11 @@ export function Cards() {
         <span className="hint">Without a topic, new cards come from passages you have no cards for yet.</span>
       </form>
       {busy && <Working label={MAKING} />}
+      {note && (
+        <p className="notice" role="status">
+          {note}
+        </p>
+      )}
       {error && (
         <p className="notice bad" role="alert">
           {error}
@@ -159,7 +218,10 @@ export function Cards() {
                 </li>
               ) : (
                 <li key={c.id}>
-                  <Rich inline className="q" text={c.front} />
+                  {/* The label sits in the question's column: in the actions column it squeezed the text on phones. */}
+                  <span className="q">
+                    <LevelTag card={c} /> <Rich inline text={c.front} />
+                  </span>
                   <Rich inline className="a" text={c.back} />
                   <span className="row-actions">
                     <span className="when" style={{ alignSelf: 'center', marginRight: 6 }}>
@@ -275,6 +337,7 @@ function Review({ queue, onDone }: { queue: Card[]; onDone: () => void }) {
       <div className="head">
         <h1>Review</h1>
         <div className="group">
+          <LevelTag card={card} />
           <span className="muted num" style={{ alignSelf: 'center' }}>
             {i + 1} of {list.length}
           </span>

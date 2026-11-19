@@ -148,6 +148,8 @@ const VERDICTS = ['correct', 'partial', 'incorrect', 'none'] as const;
 const DEADLINE_KINDS = ['exam', 'test', 'quiz', 'assignment', 'lab', 'project', 'presentation', 'other'] as const;
 const BRIEF_FORMATS = ['summary', 'guide', 'terms'] as const;
 const BRIEF_LENGTHS = ['short', 'medium', 'long'] as const;
+// A card holds one level; "mixed" is only a request for a mix, so no card is stored as mixed.
+const CARD_LEVELS = ['easy', 'medium', 'hard'] as const;
 
 export interface Imported {
   cubicle: Cubicle;
@@ -222,6 +224,7 @@ export function buildImport(m: any, newId: () => string, now = Date.now()): Impo
       back,
       chunkId: ck(c.chunkId),
       manual: c.manual === true,
+      difficulty: oneOf(c.difficulty, CARD_LEVELS),
       createdAt: num(c.createdAt, now),
       ef: Math.max(1.3, num(c.ef, 2.5)),
       interval: Math.max(0, num(c.interval)),

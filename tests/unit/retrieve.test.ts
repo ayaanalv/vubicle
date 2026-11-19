@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isBroadQuestion } from '../../src/app/retrieve';
+import { isBroadQuestion, byCoverage, fewestFirst } from '../../src/app/retrieve';
+import type { StoredChunk } from '../../src/app/db';
 import { plan } from '../../api/_lib/tasks';
 
 describe('isBroadQuestion', () => {
@@ -55,5 +56,30 @@ describe('chat prompt', () => {
     expect(system).toMatch(/about facts, not judgment/);
     expect(system).toMatch(/say in a sentence why/);
     expect(system).toMatch(/"covered" to false only when the facts needed to answer are not in the passages/);
+  });
+});
+
+describe('passages for new flashcards', () => {
+  const chunk = (n: number): StoredChunk => ({ id: `p${n}`, fileId: 'f', cubicleId: 'c', label: `p. ${n}`, page: n, ord: n, text: `Passage ${n} `.repeat(10) });
+  const chunks = Array.from({ length: 8 }, (_, i) => chunk(i + 1));
+  const ids = (cs: StoredChunk[]) => cs.map((c) => c.id);
+
+  it('sends passages with the fewest cards first', () => {
+    // p1 to p4 have cards already; p6 has one; the rest have none.
+    const cardsPer = new Map([['p1', 3], ['p2', 2], ['p3', 2], ['p4', 1], ['p6', 1]]);
+    expect(ids(byCoverage(chunks, cardsPer, 3, () => 0))).toEqual(['p5', 'p7', 'p8']);
+    // Five wanted: the three with no cards, then the two with one card each, in that order.
+    expect(ids(byCoverage(chunks, cardsPer, 5, () => 0))).toEqual(['p5', 'p7', 'p8', 'p4', 'p6']);
+    // Room for all eight: still fewest first, so uncovered passages are never the ones cut off.
+    expect(ids(byCoverage(chunks, cardsPer, 10, () => 0))).toEqual(['p5', 'p7', 'p8', 'p4', 'p6', 'p2', 'p3', 'p1']);
+  });
+
+  it('spreads across the material when nothing has cards yet, in reading order', () => {
+    expect(ids(byCoverage(chunks, new Map(), 4, () => 0))).toEqual(['p1', 'p3', 'p5', 'p7']);
+  });
+
+  it('on a topic, keeps the best matches but puts uncovered ones first', () => {
+    const hits = [chunk(3), chunk(1), chunk(2)];
+    expect(ids(fewestFirst(hits, new Map([['p3', 2]]), 2))).toEqual(['p1', 'p2']);
   });
 });

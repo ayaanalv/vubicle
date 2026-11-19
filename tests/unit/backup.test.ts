@@ -98,7 +98,11 @@ describe('building records from a backup', () => {
           { id: 'f1', name: 'Lecture.pdf', kind: 'pdf', status: 'reading', size: 'big', injected: '<img>' },
           { id: 'f2', name: 'Odd', kind: 'exe' },
         ],
-        cards: [{ front: 'Q', back: 'A', ef: 'x', due: 5, manual: 'yes', extra: { nested: true } }],
+        cards: [
+          { front: 'Q', back: 'A', ef: 'x', due: 5, manual: 'yes', extra: { nested: true } },
+          { front: 'Q2', back: 'A2', difficulty: 'hard' },
+          { front: 'Q3', back: 'A3', difficulty: 'mixed' },
+        ],
         deadlines: [{ title: 'Midterm', kind: 'party', date: 'soon', weight: 250, done: 'no' }],
         chats: [{ mode: 'hacker', messages: [] }, { mode: 'chat', title: 'Ok', messages: [{ role: 'system', text: 'x' }, { role: 'student', text: 'hi', verdict: 'great' }] }],
         briefs: [{ format: 'poem', length: 'short', parts: [] }],
@@ -110,6 +114,8 @@ describe('building records from a backup', () => {
     expect(r.files[0].record).not.toHaveProperty('injected');
     expect(r.cards[0]).toMatchObject({ front: 'Q', back: 'A', ef: 2.5, due: 5, manual: false });
     expect(r.cards[0]).not.toHaveProperty('extra');
+    // Difficulty: kept when it is a real level, dropped otherwise (old cards have none).
+    expect(r.cards.map((c) => c.difficulty)).toEqual([undefined, 'hard', undefined]);
     expect(r.deadlines[0]).toMatchObject({ kind: 'other', date: null, weight: null, done: false });
     expect(r.chats).toHaveLength(1);
     expect(r.chats[0].messages).toEqual([expect.objectContaining({ role: 'student', text: 'hi', verdict: undefined })]);
