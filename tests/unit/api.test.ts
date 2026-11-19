@@ -217,6 +217,20 @@ describe('rate limit', () => {
     expect((await take(store, 'p', hourly(60), t)).allowed).toBe(true);
   });
 
+  it('reports a wait that is exactly long enough while earlier requests slide out', async () => {
+    let t = H * 10 + H - 60_000; // 3 requests one minute before the hour turns
+    const store = memoryStore(() => t);
+    for (let i = 0; i < 3; i++) expect((await take(store, 'p', hourly(3), t)).allowed).toBe(true);
+    t = H * 11 + 10 * 60_000; // 10 minutes into the next hour, 5/6 of those 3 still count: full
+    const no = await take(store, 'p', hourly(3), t);
+    expect(no.allowed).toBe(false);
+    // One request fits once a third of the hour has passed: 20 minutes in, so 10 minutes from now.
+    // Rounded up, so the countdown is never early.
+    expect([600, 601]).toContain(no.resetIn);
+    expect((await take(store, 'p', hourly(3), t + (no.resetIn - 30) * 1000)).allowed).toBe(false);
+    expect((await take(store, 'p', hourly(3), t + no.resetIn * 1000)).allowed).toBe(true);
+  });
+
   it('enforces a daily cap on top of the hourly one', async () => {
     let t = 86_400_000 * 100 + 1000;
     const store = memoryStore(() => t);

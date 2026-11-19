@@ -9,15 +9,18 @@ import type { Brief, Card, Chat, Cubicle, Deadline, MapData, Message, Quiz, Quiz
 export const FORMAT = 'vubicle-backup';
 export const VERSION = 1;
 
+const GB = 1024 * 1024 * 1024;
+
 /**
  * Sized for a large course: each original file may be up to 60 MB, and vubicle.json holds every passage with
- * its embedding (about 60 KB each), so 300 MB is room for about 5,000 passages.
+ * its embedding (about 15 KB each), so 300 MB is room for about 20,000 passages. Export checks the same
+ * limits (fitsInBackup), so every backup Vubicle makes can be imported again.
  */
 export const LIMITS = {
-  /** The backup file itself, before unzipping. */
-  fileBytes: 500 * 1024 * 1024,
-  /** Everything that comes out of the zip, added up. */
-  totalBytes: 1024 * 1024 * 1024,
+  /** Everything that comes out of the zip, added up. This is what stops a zip bomb. */
+  totalBytes: GB,
+  /** The backup file itself, before unzipping: the total plus room for zip headers on files that do not shrink. */
+  fileBytes: GB + 64 * 1024 * 1024,
   /** Files inside the zip: one per course file, plus vubicle.json. */
   entries: 2000,
   /** vubicle.json, unzipped, before it is parsed. */
@@ -31,6 +34,11 @@ export const MAX_LINKS = 200;
 /** An error whose message is safe to show the student as is. */
 export class BackupError extends Error {}
 const TOO_BIG = 'This backup is too large or damaged.';
+export const TOO_BIG_TO_EXPORT = 'This cubicle is too large for one backup file (over 1 GB of files). Nothing was saved.';
+
+/** Whether a backup of these original files and this vubicle.json could be imported again. */
+export const fitsInBackup = (fileSizes: number[], manifestBytes: number, limits = LIMITS) =>
+  fileSizes.length + 1 <= limits.entries && manifestBytes <= limits.manifestBytes && fileSizes.reduce((a, b) => a + b, manifestBytes) <= limits.totalBytes;
 const NOT_BACKUP = 'That file is not a Vubicle backup.';
 
 const MANIFEST = 'vubicle.json';

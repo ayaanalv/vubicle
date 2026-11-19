@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
-import { readBackupZip, readManifest, buildImport, LIMITS, MAX_TOPICS, MAX_LINKS } from '../../src/lib/backup';
+import { readBackupZip, readManifest, buildImport, fitsInBackup, LIMITS, MAX_TOPICS, MAX_LINKS } from '../../src/lib/backup';
 
 const manifest = (over: Record<string, unknown> = {}) => ({
   format: 'vubicle-backup',
@@ -50,6 +50,19 @@ describe('reading a backup zip', () => {
   it('says plainly when a file is not a backup', async () => {
     const entries = await readBackupZip(new Blob(['just some text']));
     expect(() => readManifest(entries)).toThrow('not a Vubicle backup');
+  });
+});
+
+describe('export and import agree on size', () => {
+  const MB = 1024 * 1024;
+  it('lets export make only backups that import accepts', () => {
+    // A term of lecture slides: 25 PDFs of 20 MB, which the old 500 MB import limit refused.
+    expect(fitsInBackup(Array(25).fill(20 * MB), 30 * MB)).toBe(true);
+    expect(LIMITS.fileBytes).toBeGreaterThanOrEqual(LIMITS.totalBytes);
+    // Over 1 GB of files, too many files, or an oversized vubicle.json: export refuses up front.
+    expect(fitsInBackup(Array(18).fill(60 * MB), 10 * MB)).toBe(false);
+    expect(fitsInBackup(Array(LIMITS.entries).fill(1), 1)).toBe(false);
+    expect(fitsInBackup([], LIMITS.manifestBytes + 1)).toBe(false);
   });
 });
 

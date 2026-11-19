@@ -326,7 +326,7 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
                 <button role="menuitem" onClick={() => (close(), setDialog('rename'))}>
                   <Pencil aria-hidden="true" /> Rename this cubicle
                 </button>
-                <button role="menuitem" onClick={() => (close(), exportCubicle(cubicle))}>
+                <button role="menuitem" onClick={() => (close(), exportCubicle(cubicle).catch((e) => window.alert(e.message || 'The backup could not be made. Nothing was saved.')))}>
                   <Download aria-hidden="true" /> Export a backup
                 </button>
                 <ImportButton inMenu onDone={close} />

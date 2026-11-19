@@ -4,14 +4,15 @@ import { zipSync, strToU8 } from 'fflate';
 import { Download, Trash2 } from 'lucide-react';
 import { byCubicle, changed, db, deleteCubicle, uid, PER_CUBICLE, type Cubicle } from './db';
 import { Dialog } from './ui';
-import { FORMAT, VERSION, readBackupZip, readManifest, buildImport } from '../lib/backup';
+import { FORMAT, VERSION, readBackupZip, readManifest, buildImport, fitsInBackup, BackupError, TOO_BIG_TO_EXPORT } from '../lib/backup';
 
 export async function backupBytes(c: Cubicle): Promise<Uint8Array> {
   const [files, blobs, chunks, cards, quizzes, chats, maps, deadlines, briefs] = await Promise.all(PER_CUBICLE.map((s) => byCubicle(s, c.id)));
-  const entries: Record<string, Uint8Array> = {};
+  const manifest = strToU8(JSON.stringify({ format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), cubicle: c, files, chunks, cards, quizzes, chats, maps, deadlines, briefs }));
+  // Refuse before reading any file, so a student never holds a backup that import would turn away.
+  if (!fitsInBackup((blobs as { data: Blob }[]).map((b) => b.data.size), manifest.length)) throw new BackupError(TOO_BIG_TO_EXPORT);
+  const entries: Record<string, Uint8Array> = { 'vubicle.json': manifest };
   for (const b of blobs as { id: string; data: Blob }[]) entries[`files/${b.id}`] = new Uint8Array(await b.data.arrayBuffer());
-  const manifest = { format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), cubicle: c, files, chunks, cards, quizzes, chats, maps, deadlines, briefs };
-  entries['vubicle.json'] = strToU8(JSON.stringify(manifest));
   return zipSync(entries, { level: 6 });
 }
 
@@ -52,6 +53,7 @@ export async function importBackup(file: File): Promise<Cubicle> {
 
 export function DeleteCubicle({ cubicle, open, onClose }: { cubicle: Cubicle; open: boolean; onClose: () => void }) {
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
   return (
     <Dialog open={open} onClose={onClose} label={`Delete ${cubicle.name}`}>
       <div className="dialog">
@@ -64,8 +66,13 @@ export function DeleteCubicle({ cubicle, open, onClose }: { cubicle: Cubicle; op
           <button
             className="btn"
             onClick={async () => {
-              await exportCubicle(cubicle);
-              setSaved(true);
+              setError('');
+              try {
+                await exportCubicle(cubicle);
+                setSaved(true);
+              } catch (e) {
+                setError(e instanceof BackupError ? e.message : 'The backup could not be made. Nothing was saved.');
+              }
             }}
           >
             <Download aria-hidden="true" /> {saved ? 'Backup saved' : 'Export a backup first'}
@@ -81,6 +88,11 @@ export function DeleteCubicle({ cubicle, open, onClose }: { cubicle: Cubicle; op
             <Trash2 aria-hidden="true" /> Delete
           </button>
         </div>
+        {error && (
+          <p className="notice bad" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </Dialog>
   );

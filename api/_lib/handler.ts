@@ -135,7 +135,7 @@ export async function handleAi(req: Request, deps: Deps): Promise<Response> {
   }
 
   const list = candidates(c, deps.fetch, body.task === 'image');
-  if (!list.length) return json(503, { error: 'config', message: 'The AI service is not set up yet.' });
+  if (!list.length) return notReady();
 
   const limits: Limit[] = [
     { name: 'ai-h', cap: c.hourlyCap, windowSec: 3600 },
