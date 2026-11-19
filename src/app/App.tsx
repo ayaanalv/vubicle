@@ -112,8 +112,9 @@ function StorageProblem({ message }: { message: string }) {
     <div className="shell">
       <header className="top">
         <a className="mark" href="/" aria-label="Vubicle home" translate="no">
-          <img src="/favicon.svg" alt="" />
-          <span>vubicle</span>
+          <img className="logo-light" src="/vubicle-logo.svg" alt="Vubicle" width={367} height={100} />
+          <img className="logo-dark" src="/vubicle-logo-dark.svg" alt="Vubicle" width={367} height={100} />
+          <img className="logo-icon" src="/favicon.svg" alt="Vubicle" width={28} height={28} />
         </a>
       </header>
       <main className="empty">
@@ -132,8 +133,9 @@ function FirstRun({ onCreate }: { onCreate: () => void }) {
     <div className="shell">
       <header className="top">
         <a className="mark" href="/">
-          <img src="/favicon.svg" alt="" />
-          <span>vubicle</span>
+          <img className="logo-light" src="/vubicle-logo.svg" alt="Vubicle" width={367} height={100} />
+          <img className="logo-dark" src="/vubicle-logo-dark.svg" alt="Vubicle" width={367} height={100} />
+          <img className="logo-icon" src="/favicon.svg" alt="Vubicle" width={28} height={28} />
         </a>
       </header>
       <main className="empty">
@@ -295,8 +297,9 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
       <div className="shell">
         <header className="top">
           <a className="mark" href="/" aria-label="Vubicle home" translate="no">
-            <img src="/favicon.svg" alt="" />
-            <span>vubicle</span>
+            <img className="logo-light" src="/vubicle-logo.svg" alt="Vubicle" width={367} height={100} />
+            <img className="logo-dark" src="/vubicle-logo-dark.svg" alt="Vubicle" width={367} height={100} />
+            <img className="logo-icon" src="/favicon.svg" alt="Vubicle" width={28} height={28} />
           </a>
           <label className="sr-only" htmlFor="cubicle-switch">
             Cubicle

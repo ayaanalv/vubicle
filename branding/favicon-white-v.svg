@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<title>Vubicle</title>
+<style>.v{fill:#1B1926}@media (prefers-color-scheme: dark){.v{fill:#FFFFFF}}</style>
+  <polygon fill="#B3A9F7" points="50,2 92,26 80,33 50,16 20,33 8,26"/>
+  <polygon fill="#5B4BD6" points="6,36 18,43 18,70 50,88 50,100 6,75"/>
+  <polygon fill="#8B7EF0" points="94,36 82,43 82,70 50,88 50,100 94,75"/>
+  <polygon class="v" points="24,38 37,38 50,62 63,38 76,38 50,84"/>
+</svg>

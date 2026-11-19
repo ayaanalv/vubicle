@@ -281,8 +281,27 @@ textarea.input {
   text-decoration: none;
 }
 .mark img {
-  width: 28px;
+  width: auto;
   height: 28px;
+}
+/* Light logo on the light theme, dark-background logo on the dark theme (system or chosen). */
+.mark .logo-dark,
+.mark .logo-icon {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .mark .logo-light {
+    display: none;
+  }
+  :root:not([data-theme='light']) .mark .logo-dark {
+    display: block;
+  }
+}
+:root[data-theme='dark'] .mark .logo-light {
+  display: none;
+}
+:root[data-theme='dark'] .mark .logo-dark {
+  display: block;
 }
 .switcher {
   max-width: 260px;
@@ -1293,8 +1312,13 @@ td .input:focus {
     padding: 8px 12px;
     gap: 4px;
   }
-  .mark span {
-    display: none;
+  /* Phones: the icon alone, as before, so the course switcher keeps its room. */
+  .mark .logo-light,
+  .mark .logo-dark {
+    display: none !important;
+  }
+  .mark .logo-icon {
+    display: block;
   }
   .switcher {
     max-width: 44vw;

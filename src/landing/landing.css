@@ -132,6 +132,12 @@ input {
   text-decoration: none;
   margin-right: auto;
 }
+/* The logo takes the height the "vubicle" text had: one line of --s-m. */
+.wordmark img {
+  display: block;
+  height: var(--s-m);
+  width: auto;
+}
 .bar nav {
   display: flex;
   gap: 28px;

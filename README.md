@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="branding/vubicle-logo-dark.svg">
+  <img src="branding/vubicle-logo.svg" alt="Vubicle" width="300">
+</picture>
+
 # Vubicle
 
 [![CI](https://github.com/ayaanalv/vubicle/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ayaanalv/vubicle/actions/workflows/ci.yml)
