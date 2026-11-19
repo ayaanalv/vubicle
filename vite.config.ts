@@ -20,14 +20,20 @@ function devApi(): Plugin {
         const body = Buffer.concat(chunks).toString();
         const headers = new Headers(Object.entries(req.headers).flatMap(([k, v]) => (typeof v === 'string' ? [[k, v]] : [])) as [string, string][]);
         const request = new Request(`http://localhost${req.url}`, { method: req.method, headers, body: req.method === 'POST' ? body : undefined });
-        const { defaultDeps, handleAi, handleEmbed } = await server.ssrLoadModule('/api/_lib/handler.ts');
+        const { defaultDeps, handleAi, handleEmbed, handleToken, refuseCaller } = await server.ssrLoadModule('/api/_lib/handler.ts');
         const { GET: status } = await server.ssrLoadModule('/api/status.ts');
         let response: Response;
-        if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY && req.url !== '/api/status') {
-          const { mockAi } = await server.ssrLoadModule('/tests/mock-ai.ts');
-          const parsed = JSON.parse(body || '{}');
-          await new Promise((r) => setTimeout(r, 400));
-          response = req.url.startsWith('/api/embed') ? Response.json({ error: 'config' }, { status: 503 }) : Response.json({ result: mockAi(parsed), provider: 'mock' });
+        if (req.url.startsWith('/api/token')) response = await handleToken(request, defaultDeps());
+        else if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY && req.url !== '/api/status') {
+          // The mock still checks origin and token, so the dev server refuses what production refuses.
+          const refused = refuseCaller(request, defaultDeps().config);
+          if (refused) response = refused;
+          else {
+            const { mockAi } = await server.ssrLoadModule('/tests/mock-ai.ts');
+            const parsed = JSON.parse(body || '{}');
+            await new Promise((r) => setTimeout(r, 400));
+            response = req.url.startsWith('/api/embed') ? Response.json({ error: 'config' }, { status: 503 }) : Response.json({ result: mockAi(parsed), provider: 'mock' });
+          }
         } else if (req.url.startsWith('/api/ai')) response = await handleAi(request, defaultDeps());
         else if (req.url.startsWith('/api/embed')) response = await handleEmbed(request, defaultDeps());
         else response = status();

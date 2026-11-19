@@ -4,6 +4,9 @@ import { waitMessage } from '../../src/app/ui';
 
 const busy = (retryAfter: number, error = 'busy') => Response.json({ error, retryAfter, message: 'busy' }, { status: 429, headers: { 'retry-after': String(retryAfter) } });
 const ok = (result: unknown) => Response.json({ result });
+/** A fetch stub that hands out tokens and passes every other request to `api`. */
+const withToken = (api: (url: string, init?: RequestInit) => Promise<Response>) =>
+  vi.fn((url: string, init?: RequestInit) => (url === '/api/token' ? Promise.resolve(Response.json({ token: 't1', expiresIn: 900 })) : api(url, init)));
 
 describe('wait times', () => {
   it('never schedules a retry sooner than a second, even if the server says 0', () => {
@@ -51,7 +54,7 @@ describe('ai() waiting in line', () => {
   it('waits the server’s retry time with a real countdown, shows "trying" in flight, then answers', async () => {
     let calls = 0;
     let release!: (r: Response) => void;
-    vi.stubGlobal('fetch', vi.fn(() => (++calls === 1 ? Promise.resolve(busy(5)) : new Promise<Response>((r) => (release = r)))));
+    vi.stubGlobal('fetch', withToken(() => (++calls === 1 ? Promise.resolve(busy(5)) : new Promise<Response>((r) => (release = r)))));
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const p = ai<string>('chat', {}, { label: 'Answering' });
     expect(generating()).toBe(true);
@@ -68,7 +71,7 @@ describe('ai() waiting in line', () => {
   });
 
   it('waits out a long hourly cap instead of failing, and Cancel ends it', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => busy(41 * 60, 'cap')));
+    vi.stubGlobal('fetch', withToken(async () => busy(41 * 60, 'cap')));
     const p = ai('chat', {}, { label: 'Answering' });
     const settled = p.catch((e) => e);
     await vi.advanceTimersByTimeAsync(10);
@@ -81,7 +84,8 @@ describe('ai() waiting in line', () => {
   });
 
   it('lets background indexing resume only when no study request is running', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => busy(3)).mockResolvedValueOnce(busy(3)).mockResolvedValueOnce(ok('x')));
+    const api = vi.fn(async () => busy(3)).mockResolvedValueOnce(busy(3)).mockResolvedValueOnce(ok('x'));
+    vi.stubGlobal('fetch', withToken(api));
     let idle = false;
     void whenIdle().then(() => (idle = true));
     await vi.advanceTimersByTimeAsync(0);
@@ -95,5 +99,42 @@ describe('ai() waiting in line', () => {
     await p;
     await vi.advanceTimersByTimeAsync(0);
     expect(idle).toBe(true);
+  });
+});
+
+describe('access token', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('sends a token, reuses it, and on a 401 gets a new one and tries once more', async () => {
+    const valid = new Set<string>();
+    let issued = 0;
+    let apiCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/token') {
+          const t = `tok-${++issued}`;
+          valid.add(t);
+          return Response.json({ token: t, expiresIn: 900 });
+        }
+        apiCalls++;
+        const t = new Headers(init?.headers).get('x-vubicle-token') ?? '';
+        return valid.has(t) ? ok('answer') : Response.json({ error: 'token' }, { status: 401 });
+      }),
+    );
+    await expect(ai('chat', {}, { label: 'Answering' })).resolves.toBe('answer');
+    const tokens = issued;
+    await expect(ai('chat', {}, { label: 'Answering' })).resolves.toBe('answer');
+    expect(issued).toBe(tokens); // reused, not fetched again
+    valid.clear(); // the token stops working, as when the student's IP changes
+    apiCalls = 0;
+    await expect(ai('chat', {}, { label: 'Answering' })).resolves.toBe('answer');
+    expect(issued).toBe(tokens + 1);
+    expect(apiCalls).toBe(2);
+  });
+
+  it('shows a plain message, not a token error, when a new token is refused too', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/api/token' ? Response.json({ token: 'x', expiresIn: 900 }) : Response.json({ error: 'token', message: 'Your session needs refreshing. Reload the page if this keeps happening.' }, { status: 401 }))));
+    await expect(ai('chat', {}, { label: 'Answering' })).rejects.toThrow('Reload the page');
   });
 });

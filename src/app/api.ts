@@ -94,6 +94,65 @@ export function formatWait(ms: number): string {
   return `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`;
 }
 
+// ---- the access token: /api/ai and /api/embed only answer requests that carry one (api/_lib/token.ts) ----
+
+const TOKEN_HEADER = 'x-vubicle-token';
+let token: { value: string; until: number } | undefined;
+let tokenFetch: Promise<string | Failed> | undefined;
+
+/** A failed token request, kept as plain data so every caller waiting on it can read it. */
+interface Failed {
+  status: number;
+  retryAfter: string | null;
+  body: string;
+}
+const asResponse = (f: Failed) => new Response(f.body, { status: f.status, headers: f.retryAfter ? { 'retry-after': f.retryAfter } : {} });
+
+/**
+ * The current token, fetched once and shared by every request until a minute before it expires. Resolves to
+ * the failed response when /api/token says no, and rejects when the network is down.
+ */
+export function getToken(): Promise<string | Failed> {
+  if (token && Date.now() < token.until) return Promise.resolve(token.value);
+  tokenFetch ??= (async () => {
+    try {
+      const res = await fetch('/api/token', { method: 'POST' });
+      if (!res.ok) return { status: res.status, retryAfter: res.headers.get('retry-after'), body: await res.text() };
+      const { token: value, expiresIn } = await res.json();
+      token = { value, until: Date.now() + Math.max(30, Number(expiresIn) - 60) * 1000 };
+      return value as string;
+    } finally {
+      tokenFetch = undefined;
+    }
+  })();
+  return tokenFetch;
+}
+
+/** Drops a token the server refused (expired, or the IP changed), so the next request fetches a new one. */
+function dropToken(value: string) {
+  if (token?.value === value) token = undefined;
+}
+
+/** POSTs JSON with the token. On a 401 it gets a new token and tries once more, so students never see it. */
+async function send(url: string, body: string, signal?: AbortSignal): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const t = await abortable(getToken(), signal);
+    if (typeof t !== 'string') return asResponse(t);
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', [TOKEN_HEADER]: t }, body, signal });
+    if (res.status !== 401 || attempt > 0) return res;
+    dropToken(t);
+  }
+}
+
+function abortable<T>(p: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return p;
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    p.then(resolve, reject);
+  });
+}
+
 async function hash(s: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf.slice(0, 16)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -131,7 +190,7 @@ export async function ai<T>(task: string, body: Record<string, unknown>, opts: A
     for (;;) {
       let res: Response | undefined;
       try {
-        res = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: payload, signal: ctrl.signal });
+        res = await send('/api/ai', payload, ctrl.signal);
       } catch {
         if (ctrl.signal.aborted) throw ctrl.signal.reason;
         if (!navigator.onLine) throw new AiError('You are offline. Your files and saved cards still work; AI tools need a connection.');
@@ -167,7 +226,7 @@ export async function ai<T>(task: string, body: Record<string, unknown>, opts: A
 /** One try only: callers fall back to keyword search when this returns null. */
 export async function embed(texts: string[], kind: 'document' | 'query', signal?: AbortSignal): Promise<{ vectors?: number[][]; retryAfter?: number }> {
   try {
-    const res = await fetch('/api/embed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts, kind }), signal });
+    const res = await send('/api/embed', JSON.stringify({ texts, kind }), signal);
     if (res.ok) return { vectors: (await res.json()).vectors };
     if (res.status === 429) return { retryAfter: Number((await res.json().catch(() => ({}))).retryAfter) || 30 };
     return {};

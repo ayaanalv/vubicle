@@ -22,7 +22,7 @@ Opt-in browser suites skip unless set: `SHOTS=1` (design screenshots), `README_S
 
 - `index.html` + `src/landing/`: static landing page (no framework). `app/index.html` + `src/app/`: React 19 workspace. `src/lib/`: pure, tested logic (parsing, chunking, BM25 + RRF search, SM-2, iCalendar, map layout). `api/`: Vercel functions; `api/_lib/` holds prompts and output checks (`tasks.ts`), providers, failover, rate limiting, request handling.
 - Browser: parse (pdf.js/fflate) → passages that never cross a page or slide → IndexedDB → hybrid search (BM25 always; Gemini embeddings added in the background when available) → `/api/ai` with a task name and passages.
-- Server: owns every prompt and validates every model output. Failover tries Gemini Flash-Lite, Gemini Flash, then Groq; every provider once before any retry, and failing providers are benched. Per-person hourly cap in Upstash Redis.
+- Server: owns every prompt and validates every model output. Failover tries Gemini Flash-Lite, Gemini Flash, then Groq; every provider once before any retry, and failing providers are benched. Per-person sliding-window limits (hourly and daily AI, embedding requests and characters, token issuing) in Upstash Redis. `/api/ai` and `/api/embed` need a signed 15-minute token from `/api/token` (`TOKEN_SECRET`; deployments without it refuse AI requests; `npm run dev` falls back to a dev secret).
 - Busy providers → 429 + Retry-After; the browser waits in line with a real countdown (`src/app/api.ts`), never an error.
 
 ## Decisions to keep
@@ -34,6 +34,7 @@ Opt-in browser suites skip unless set: `SHOTS=1` (design screenshots), `README_S
 - Model text is rendered only through `src/app/rich.tsx` (never `innerHTML`; a unit test enforces it). Use `inline` mode inside buttons and labels.
 - Bump `CACHE_VERSION` in `src/app/api.ts` when a prompt change should stop old cached answers from being reused.
 - Default model order is Flash-Lite first: 3.8 Flash hung and returned 503 for minutes in production. Model names are env vars.
+- Backups are untrusted input: `src/lib/backup.ts` unzips as a stream with byte and entry limits and rebuilds every record from an allowlist. Add new record fields there or they are dropped on import.
 - Upstash vars may be `UPSTASH_REDIS_REST_*` or the Vercel Marketplace's `KV_REST_API_*`; both are read.
 - Copy style (UI and docs): short sentences, sentence-case headings, no em dashes, no hype words.
 

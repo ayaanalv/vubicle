@@ -13,7 +13,13 @@ export function config(env: NodeJS.ProcessEnv = process.env) {
     // Upstash via the Vercel Marketplace sets KV_REST_API_*; a direct Upstash database uses UPSTASH_REDIS_REST_*.
     redisUrl: env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL || '',
     redisToken: env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN || '',
+    // AI requests per person: a rolling hour, and a rolling day on top of it.
     hourlyCap: Number(env.HOURLY_CAP) || 60,
+    dailyCap: Number(env.DAILY_CAP) || 200,
+    // Signs the tokens /api/token hands out (api/_lib/token.ts). Required in every deployment.
+    tokenSecret: env.TOKEN_SECRET || '',
+    // Not on Vercel and not a production build: npm run dev and the tests. Only here may TOKEN_SECRET be missing.
+    localDev: !env.VERCEL && !env.VERCEL_ENV && env.NODE_ENV !== 'production',
     // Vercel preview deployments get their own URL; allow it so previews can be tested.
     allowedOrigins: [
       ...list(env.ALLOWED_ORIGINS, 'https://vubicle.com,https://www.vubicle.com'),

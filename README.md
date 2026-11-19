@@ -115,8 +115,9 @@ flowchart LR
   Line -- "task name + matching passages" --> AI
   Index -- "passages, 32 per batch" --> Embed
   subgraph Vercel["Vercel serverless functions"]
-    AI["/api/ai"] --> Guard[Origin check, input limits]
-    Guard --> Cap[Per-person hourly cap]
+    Token["/api/token"] -. "signed, 15 min" .-> Line
+    AI["/api/ai"] --> Guard[Origin and token check, input limits]
+    Guard --> Cap[Per-person hourly and daily caps]
     Cap --> Redis[(Upstash Redis)]
     AI --> Prompts["Server-owned prompts,<br/>JSON output checks"]
     Prompts --> Failover[Failover with circuit breaker]
@@ -140,8 +141,8 @@ sequenceDiagram
   S->>B: "Why is escape velocity higher than orbital speed?"
   B->>B: Hybrid search over this course's passages (IndexedDB)
   B->>A: { task: "chat", question, passages[8] }
-  A->>A: Check origin, types and lengths
-  A->>R: INCR this person's hourly counter
+  A->>A: Check origin, signed token, types and lengths
+  A->>R: Count against this person's hourly and daily limits
   A->>G: Server-built prompt (Flash-Lite)
   G-->>A: 503 overloaded, so Flash-Lite is benched for 30 s
   A->>Q: Same request, smaller passage budget
@@ -220,12 +221,12 @@ Code: [`api/_lib/failover.ts`](api/_lib/failover.ts), [`api/_lib/providers.ts`](
 
 **The goal:** one heavy user (or one script) must not be able to spend the whole free quota.
 
-- **Fixed one-hour window per person.** Each request runs `INCR rl:<person>:<hour>` in a Redis `MULTI` with `EXPIRE ... NX`, so the count and its expiry are set atomically. The default cap is 60 AI requests per hour (`HOURLY_CAP`).
+- **Sliding windows per person.** Each limit keeps a count for the current window and the one before it, and weights the earlier count by how much of it still falls inside the last hour (or day). A fixed window let someone use the whole cap just before the hour turned and again just after it. Each request runs `INCRBY` with `EXPIRE ... NX` and reads the previous count in one Redis `MULTI`. The defaults are 60 AI requests in any hour (`HOURLY_CAP`) and 200 in any day (`DAILY_CAP`).
 - **Shared across instances.** Vercel runs many function instances, and an in-memory counter would let a person exceed the cap by landing on different ones. Redis makes the count global. Without Redis configured (local development), it falls back to memory, and the code says so in a `shortcut:` comment.
 - **Private by design.** The "person" is a SHA-256 hash of the IP address (with an optional salt), so raw IPs never reach the store.
-- **Fair refunds.** If every provider was busy and no model was called, the request is **refunded**, so waiting in line never uses up a student's allowance.
-- **Indexing is counted separately.** Embedding calls use their own bucket (`rl:<person>:emb`, 5 times the cap), so indexing a 200-page course can't use up the requests chat, flashcards and quizzes need.
-- **Over the cap** returns 429 with `error: "cap"` and the seconds until the window resets, which the browser turns into a plain message: "You have used this hour's free AI requests. The next one opens in 41 min."
+- **Fair refunds.** If every provider was busy and no model was called, the request is **refunded**, so waiting in line never uses up a student's allowance. A refund runs as a small Lua script that never takes a count below zero.
+- **Indexing is counted separately.** Embedding calls have their own limits, so indexing a 200-page course can't use up the requests chat, flashcards and quizzes need: 120 requests and 1,000,000 characters an hour.
+- **Over the cap** returns 429 with `error: "cap"` and the seconds until the next request fits, which the browser turns into a plain message: "You have used this hour's free AI requests. The next one opens in 41 min."
 
 Code: [`api/_lib/ratelimit.ts`](api/_lib/ratelimit.ts), [`api/_lib/handler.ts`](api/_lib/handler.ts)
 
@@ -254,12 +255,14 @@ Code: [`src/app/api.ts`](src/app/api.ts), [`src/app/ui.tsx`](src/app/ui.tsx), [`
 
 ## Security and privacy
 
-- **Keys stay on the server.** The browser only talks to `/api/*` on its own origin. Gemini and Groq keys exist only as Vercel environment variables, and `/api/status` reports whether each is configured without showing values.
-- **Only Vubicle's pages may call the API.** Requests must come from `vubicle.com` (or a Vercel preview of this project, or localhost in development). Origins can be forged outside a browser, which is why the hourly cap exists.
+- **Keys stay on the server.** The browser only talks to `/api/*` on its own origin. Gemini and Groq keys exist only as Vercel environment variables. `/api/status` answers only `{"ok": true}` or `false`, so it tells a stranger nothing about models or limits.
+- **Signed, short-lived tokens.** `/api/ai` and `/api/embed` answer only requests that carry a token from `/api/token`: the caller's hashed IP and an expiry 15 minutes out, signed with HMAC-SHA256 (`TOKEN_SECRET`) and checked in constant time. A missing, expired, altered or other-IP token gets 401, and the browser quietly fetches a new one and tries once more. Without `TOKEN_SECRET`, a deployment refuses every AI request. A script can still ask for its own token, so this slows abuse and lets token issuing be rate limited (30 an hour per person); the limits above are what cap cost.
+- **Only Vubicle's pages may call the API.** Requests must come from `vubicle.com` (or a Vercel preview of this project, or localhost in development). Origins can be forged outside a browser, so this is only a cheap first filter.
+- **Client IPs come from `x-vercel-forwarded-for`**, which Vercel sets itself. Elsewhere the code takes the last `x-forwarded-for` entry, not the first one, which the caller could type.
 - **Every input is bounded:** request body (300 KB), passages per task (3 to 40), characters per passage (700 or 2,000), question length, history length, and card or question counts.
 - **Prompt injection is contained.** Passage text and student answers are marked as data in every prompt, and outputs are validated against the expected shape, so a hostile PDF can't change what the endpoint does.
 - **No accounts, no server copy.** Files and study data live in the student's browser (IndexedDB). Only the passages that match a request are sent, to Google Gemini or Groq. The landing page and the app's first screen say plainly that free tiers may use that text to improve their services, and that students shouldn't upload anything confidential.
-- **Hardening headers** (`nosniff`, `DENY` framing, a strict referrer policy, a `Permissions-Policy` that turns off camera, microphone and location, and a Content Security Policy that allows only the site's own scripts and connections) are set in [`vercel.json`](vercel.json). The whole browser suite passes on the production build with the CSP enforced.
+- **Hardening headers** (HSTS for two years, `nosniff`, `DENY` framing, a strict referrer policy, a `Permissions-Policy` that turns off camera, microphone and location, and a Content Security Policy that allows only the site's own scripts and connections) are set in [`vercel.json`](vercel.json). The whole browser suite passes on the production build with the CSP enforced.
 
 ## Testing
 
@@ -330,9 +333,9 @@ README_SHOTS=1 npx playwright test readme --project=desktop
 ## Deploy
 
 1. Import the repo in Vercel (Hobby plan). It detects Vite, builds with `npm run build`, and serves `dist/` plus the functions in `api/`.
-2. Add `GEMINI_API_KEY`, `GROQ_API_KEY` and `IP_SALT` (a long random value, stored as a secret) under **Settings > Environment Variables**. Add **Upstash for Redis** from the **Storage** tab; it sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`, which the code reads. Everything else in [`.env.example`](.env.example) has a default.
+2. Add `GEMINI_API_KEY`, `GROQ_API_KEY`, `IP_SALT` and `TOKEN_SECRET` (long random values, stored as secrets) under **Settings > Environment Variables**. Add **Upstash for Redis** from the **Storage** tab; it sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`, which the code reads. Everything else in [`.env.example`](.env.example) has a default.
 3. Add your domain under **Settings > Domains** and enter the DNS records Vercel shows at your registrar.
-4. Open `/api/status`. It should show both providers configured and `"rateLimitStore": "upstash"`.
+4. Open `/api/status`. It should show `{"ok":true}`. To confirm the limits use Upstash, ask the site a question and check that the Upstash database's command count goes up.
 
 ## Project layout
 
@@ -340,7 +343,7 @@ README_SHOTS=1 npx playwright test readme --project=desktop
 index.html, src/landing/   landing page: static HTML, canvas motion over the hero art, live search demo
 app/index.html, src/app/   the workspace (React): tools, IndexedDB, API client and queue, ingest
 src/lib/                   pure, unit-tested logic: parsing, chunking, BM25 and fusion, SM-2, iCalendar, map layout
-api/                       serverless functions: /api/ai, /api/embed, /api/status
+api/                       serverless functions: /api/ai, /api/embed, /api/token, /api/status
 api/_lib/                  prompts and output checks, providers, failover, rate limiting, request handling
 tests/unit/                Vitest
 tests/e2e/                 Playwright, plus the README screenshot script

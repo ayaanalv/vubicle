@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { detectKind, parsePptx, parseDocx, parseNote, parsePdf, FileError, decodeXml } from '../../src/lib/parse';
+import { detectKind, parsePptx, parseDocx, parseNote, parsePdf, FileError, decodeXml, elements, MAX_XML_BYTES } from '../../src/lib/parse';
+import { zipSync, strToU8 } from 'fflate';
 import { makePdf, makePptx, makeDocx } from '../fixtures/make';
 
 describe('detectKind', () => {
@@ -24,6 +25,31 @@ describe('detectKind', () => {
 describe('decodeXml', () => {
   it('decodes named and numeric entities', () => {
     expect(decodeXml('a &amp; b &lt;c&gt; &#960; &#x3A3;')).toBe('a & b <c> π Σ');
+  });
+});
+
+describe('decodeXml limits', () => {
+  it('keeps character references past U+10FFFF as they are, instead of throwing', () => {
+    expect(decodeXml('x &#x110000; y &#99999999999; z &#x10FFFF;')).toBe('x &#x110000; y &#99999999999; z \u{10FFFF}');
+  });
+});
+
+describe('reading Office XML', () => {
+  const slide = (body: string) =>
+    zipSync({ 'ppt/slides/slide1.xml': strToU8(`<p:sld><p:cSld><p:spTree>${body}</p:spTree></p:cSld></p:sld>`) });
+  it('finds elements the same way the old regex did', () => {
+    expect(elements('<a:p><a:pPr/>x</a:p><a:p/><a:p a="1">y</a:p>', 'a:p')).toEqual(['<a:p><a:pPr/>x</a:p>', '<a:p a="1">y</a:p>']);
+  });
+  it('reads a slide full of unclosed tags quickly', () => {
+    const hostile = '<a:p><a:t>'.repeat(200_000) + '</a:t></a:p><a:p><a:r><a:t>Real text</a:t></a:r></a:p>';
+    const t = Date.now();
+    const { sections } = parsePptx('hostile.pptx', slide(hostile));
+    expect(Date.now() - t).toBeLessThan(2000);
+    expect(sections[0].text).toContain('Real text');
+  });
+  it('refuses a part too large to read, with a clear message', () => {
+    const huge = slide('<a:p><a:r><a:t>' + 'x'.repeat(MAX_XML_BYTES) + '</a:t></a:r></a:p>');
+    expect(() => parsePptx('huge.pptx', huge)).toThrow(/too large to read/);
   });
 });
 

@@ -47,26 +47,74 @@ export function detectKind(name: string, bytes: Uint8Array): FileKind {
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 export function decodeXml(s: string): string {
   return s.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, e: string) => {
-    if (e[0] === '#') return String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+    if (e[0] === '#') {
+      const cp = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      // fromCodePoint throws past U+10FFFF, which would abort the whole file over one bad character.
+      return Number.isInteger(cp) && cp >= 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : m;
+    }
     return ENTITIES[e] ?? m;
   });
 }
 
 const tidy = (s: string) => s.replace(/[ \t ]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 
+/**
+ * Largest XML part read from a .pptx or .docx. A real slide is well under 1 MB and the main part of a very
+ * long Word document a few MB, so this only stops files built to be slow or to fill memory.
+ */
+export const MAX_XML_BYTES = 20 * 1024 * 1024;
+
+const tooBig = (name: string) =>
+  new FileError(`"${name}" has a slide or section too large to read. Save it as a PDF and add that instead.`);
+
+/** Unzips only the XML parts (slides, notes, document, relationships), never images or media. */
 function unzip(name: string, bytes: Uint8Array) {
+  let files: Record<string, Uint8Array>;
   try {
-    return unzipSync(bytes);
-  } catch {
+    // The size a zip declares is the most it can unzip to here, so a part claiming more is refused unopened.
+    files = unzipSync(bytes, {
+      filter: (f) => {
+        if (!/\.(xml|rels)$/.test(f.name)) return false;
+        if (f.originalSize > MAX_XML_BYTES) throw tooBig(name);
+        return true;
+      },
+    });
+  } catch (e) {
+    if (e instanceof FileError) throw e;
     throw new FileError(`"${name}" looks damaged or is not really a ${name.split('.').pop()} file. Try saving it again.`);
   }
+  for (const part of Object.values(files)) if (part.length > MAX_XML_BYTES) throw tooBig(name);
+  return files;
+}
+
+/**
+ * Each <tag ...>...</tag> element, from the first opening tag to the next closing tag, the same as the regex
+ * /<tag[\s>][\s\S]*?<\/tag>/g. That regex rescans to the end of the part for every opening tag that has no
+ * closing tag, so a part full of them froze the page; this walks the text once.
+ */
+export function elements(xml: string, tag: string): string[] {
+  const open = `<${tag}`;
+  const close = `</${tag}>`;
+  const out: string[] = [];
+  let at = 0;
+  for (;;) {
+    let start = xml.indexOf(open, at);
+    // "<a:p" also starts "<a:pPr"; only a space or ">" after the name makes it this tag.
+    while (start >= 0 && !/[\s>]/.test(xml[start + open.length] ?? '')) start = xml.indexOf(open, start + 1);
+    if (start < 0) break;
+    const end = xml.indexOf(close, start);
+    if (end < 0) break;
+    out.push(xml.slice(start, end + close.length));
+    at = end + close.length;
+  }
+  return out;
 }
 
 /** Text of each <a:p> paragraph in a DrawingML part (slides and notes). */
 function drawingText(xml: string): string {
-  const paras = xml.match(/<a:p[\s>][\s\S]*?<\/a:p>/g) || [];
-  return paras
-    .map((p) => (p.match(/<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g) || []).map((t) => decodeXml(t.replace(/<[^>]+>/g, ''))).join(''))
+  // Text runs hold no tags ("<" is written &lt;), so [^<]* matches them without rescanning.
+  return elements(xml, 'a:p')
+    .map((p) => [...p.matchAll(/<a:t(?:\s[^<>]*)?>([^<]*)<\/a:t>/g)].map((m) => decodeXml(m[1])).join(''))
     .filter((t) => t.trim())
     .join('\n');
 }
@@ -105,12 +153,12 @@ function presentationOrder(files: Record<string, Uint8Array>): string[] {
   const rels = files['ppt/_rels/presentation.xml.rels'];
   if (!pres || !rels) return [];
   const relMap = new Map<string, string>();
-  for (const m of strFromU8(rels).matchAll(/<Relationship\b[^>]*>/g)) {
+  for (const m of strFromU8(rels).matchAll(/<Relationship\b[^<>]*>/g)) {
     const id = m[0].match(/Id="([^"]+)"/)?.[1];
     const target = m[0].match(/Target="([^"]+)"/)?.[1];
     if (id && target) relMap.set(id, 'ppt/' + target.replace(/^\/?ppt\//, ''));
   }
-  return [...strFromU8(pres).matchAll(/<p:sldId\b[^>]*r:id="([^"]+)"/g)].map((m) => relMap.get(m[1]) || '').filter(Boolean);
+  return [...strFromU8(pres).matchAll(/<p:sldId\b[^<>]*r:id="([^"<>]+)"/g)].map((m) => relMap.get(m[1]) || '').filter(Boolean);
 }
 
 export function parseDocx(name: string, bytes: Uint8Array): Parsed {
@@ -118,13 +166,13 @@ export function parseDocx(name: string, bytes: Uint8Array): Parsed {
   const doc = files['word/document.xml'];
   if (!doc) throw new FileError(`"${name}" is not a Word document Vubicle can read.`);
   const xml = strFromU8(doc);
-  const paras = (xml.match(/<w:p[\s>][\s\S]*?<\/w:p>/g) || []).map((p) => {
+  const paras = elements(xml, 'w:p').map((p) => {
     const heading = /<w:pStyle w:val="(Heading\d|Title)"/i.test(p);
     const text = p
       .replace(/<w:tab\/>/g, '\t')
       .replace(/<w:br\/>/g, '\n')
-      .match(/<w:t(?:\s[^>]*)?>[\s\S]*?<\/w:t>|\t|\n/g)
-      ?.map((t) => (t.startsWith('<') ? decodeXml(t.replace(/<[^>]+>/g, '')) : t))
+      .match(/<w:t(?:\s[^<>]*)?>[^<]*<\/w:t>|\t|\n/g)
+      ?.map((t) => (t.startsWith('<') ? decodeXml(t.replace(/<[^<>]*>/g, '')) : t))
       .join('') ?? '';
     return { heading, text: text.trim() };
   });
@@ -182,6 +230,9 @@ export async function parsePdf(name: string, bytes: Uint8Array, pdfjs: PdfJs, on
   let doc;
   try {
     // pdf.js may detach the buffer it is given, so pass a copy and keep the original for storage.
+    // No isEvalSupported or enableScripting here: pdf.js 6 removed isEvalSupported and no longer uses eval,
+    // and enableScripting only affects the form and annotation layer, which Vubicle never draws. Scripts in a
+    // PDF never run, and the Content Security Policy blocks eval anyway.
     doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
   } catch (e) {
     const msg = String((e as Error)?.message || e);

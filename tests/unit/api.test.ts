@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { withFailover, BusyError, UnavailableError, backoff } from '../../api/_lib/failover';
 import { ProviderError, gemini, groq, type Provider } from '../../api/_lib/providers';
-import { hit, memoryStore, personKey } from '../../api/_lib/ratelimit';
+import { take, memoryStore, personKey } from '../../api/_lib/ratelimit';
+import { issueToken, checkToken, tokenSecret, TOKEN_TTL_SEC } from '../../api/_lib/token';
 import { plan, extractJson, BadRequest } from '../../api/_lib/tasks';
-import { handleAi, handleEmbed, originAllowed } from '../../api/_lib/handler';
+import { handleAi, handleEmbed, handleToken, originAllowed, clientIp } from '../../api/_lib/handler';
 import { config } from '../../api/_lib/config';
 import { GET as status } from '../../api/status';
 
@@ -188,21 +189,73 @@ describe('provider clients', () => {
 });
 
 describe('rate limit', () => {
-  it('allows up to the cap per hour, then resets', async () => {
-    let t = 3_600_000 * 10 + 1000;
+  const H = 3_600_000;
+  const hourly = (cap: number) => [{ name: 'h', cap, windowSec: 3600 }];
+
+  it('allows up to the cap, then says how long until the next one', async () => {
+    let t = H * 10 + 1000;
     const store = memoryStore(() => t);
-    for (let i = 0; i < 3; i++) expect((await hit(store, 'p', 3, t)).allowed).toBe(true);
-    const over = await hit(store, 'p', 3, t);
-    expect(over).toMatchObject({ allowed: false, remaining: 0, resetIn: 3599 });
-    t += 3_600_000;
-    expect((await hit(store, 'p', 3, t)).allowed).toBe(true);
+    for (let i = 0; i < 3; i++) expect((await take(store, 'p', hourly(3), t)).allowed).toBe(true);
+    const over = await take(store, 'p', hourly(3), t);
+    expect(over).toMatchObject({ allowed: false, blockedBy: 'h', remaining: 0 });
+    expect(over.resetIn).toBeGreaterThan(0);
+    t += over.resetIn * 1000;
+    expect((await take(store, 'p', hourly(3), t)).allowed).toBe(true);
   });
+
+  it('does not allow twice the cap across the hour boundary', async () => {
+    let t = H * 10 + H - 60_000; // one minute before the hour turns
+    const store = memoryStore(() => t);
+    let ok = 0;
+    for (let i = 0; i < 60; i++) if ((await take(store, 'p', hourly(60), t)).allowed) ok++;
+    t += 2 * 60_000; // one minute after
+    for (let i = 0; i < 60; i++) if ((await take(store, 'p', hourly(60), t)).allowed) ok++;
+    // A fixed window allowed 120 here.
+    expect(ok).toBeLessThanOrEqual(62);
+    // Most of the hour later, the earlier burst has slid out.
+    t += 50 * 60_000;
+    expect((await take(store, 'p', hourly(60), t)).allowed).toBe(true);
+  });
+
+  it('enforces a daily cap on top of the hourly one', async () => {
+    let t = 86_400_000 * 100 + 1000;
+    const store = memoryStore(() => t);
+    const limits = [{ name: 'h', cap: 3, windowSec: 3600 }, { name: 'd', cap: 5, windowSec: 86_400 }];
+    let ok = 0;
+    for (let hour = 0; hour < 4; hour++, t += H) for (let i = 0; i < 3; i++) if ((await take(store, 'p', limits, t)).allowed) ok++;
+    expect(ok).toBe(5);
+    const no = await take(store, 'p', limits, t);
+    expect(no.blockedBy).toBe('d');
+    expect(no.resetIn).toBeGreaterThan(3600);
+  });
+
+  it('counts characters, not just requests', async () => {
+    const store = memoryStore();
+    const limits = (n: number) => [{ name: 'req', cap: 100, windowSec: 3600 }, { name: 'chars', cap: 1000, windowSec: 3600, amount: n }];
+    expect((await take(store, 'p', limits(900))).allowed).toBe(true);
+    const no = await take(store, 'p', limits(200));
+    expect(no).toMatchObject({ allowed: false, blockedBy: 'chars' });
+    // The refused request was not counted, so a small one still fits.
+    expect((await take(store, 'p', limits(100))).allowed).toBe(true);
+  });
+
   it('refunds requests that never reached a model', async () => {
     const store = memoryStore();
-    const a = await hit(store, 'q', 1);
+    const a = await take(store, 'q', hourly(1));
     await a.refund();
-    expect((await hit(store, 'q', 1)).allowed).toBe(true);
+    expect((await take(store, 'q', hourly(1))).allowed).toBe(true);
   });
+
+  it('never lets a refund push a count below zero', async () => {
+    const store = memoryStore();
+    const a = await take(store, 'z', hourly(1));
+    await a.refund();
+    await a.refund();
+    await a.refund();
+    expect((await take(store, 'z', hourly(1))).allowed).toBe(true);
+    expect((await take(store, 'z', hourly(1))).allowed).toBe(false);
+  });
+
   it('keeps people separate and does not store raw IPs', () => {
     expect(personKey('1.2.3.4')).not.toContain('1.2.3.4');
     expect(personKey('1.2.3.4')).not.toBe(personKey('1.2.3.5'));
@@ -281,10 +334,61 @@ describe('tasks', () => {
   });
 });
 
+describe('token', () => {
+  const me = personKey('9.9.9.9');
+  it('accepts its own token and rejects anything else', () => {
+    const { token } = issueToken(me, 'secret');
+    expect(checkToken(token, me, 'secret')).toBe('ok');
+    expect(checkToken(null, me, 'secret')).toBe('missing');
+    expect(checkToken('nonsense', me, 'secret')).toBe('malformed');
+    expect(checkToken(token, me, 'other-secret')).toBe('bad-signature');
+    expect(checkToken(token, personKey('8.8.8.8'), 'secret')).toBe('wrong-ip');
+    expect(checkToken(token, me, 'secret', Date.now() + (TOKEN_TTL_SEC + 1) * 1000)).toBe('expired');
+  });
+  it('notices a changed payload or signature', () => {
+    const { token } = issueToken(me, 'secret');
+    const [payload, sig] = token.split('.');
+    const forged = Buffer.from(JSON.stringify({ p: me, e: 9_999_999_999 })).toString('base64url');
+    expect(checkToken(`${forged}.${sig}`, me, 'secret')).toBe('bad-signature');
+    expect(checkToken(`${payload}.${sig.slice(0, -2)}${sig.endsWith('AA') ? 'BB' : 'AA'}`, me, 'secret')).toBe('bad-signature');
+    expect(checkToken(`${payload}.${sig}.x`, me, 'secret')).toBe('malformed');
+  });
+  it('fails closed without a secret, except in local development', () => {
+    const log = vi.fn();
+    expect(tokenSecret({ tokenSecret: '', localDev: false }, log)).toBeNull();
+    expect(log).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('TOKEN_SECRET') }));
+    expect(tokenSecret({ tokenSecret: '', localDev: true }, log)).toBeTruthy();
+    expect(tokenSecret({ tokenSecret: 's', localDev: false }, log)).toBe('s');
+  });
+  it('treats any Vercel deployment as not local', () => {
+    expect(config({ VERCEL: '1' } as any).localDev).toBe(false);
+    expect(config({ VERCEL_ENV: 'preview' } as any).localDev).toBe(false);
+    expect(config({ NODE_ENV: 'production' } as any).localDev).toBe(false);
+    expect(config({} as any).localDev).toBe(true);
+  });
+});
+
+describe('client IP', () => {
+  const ip = (headers: Record<string, string>) => clientIp(new Request('http://x', { headers }));
+  it('prefers the header Vercel sets, then the last forwarded entry', () => {
+    expect(ip({ 'x-vercel-forwarded-for': '1.1.1.1', 'x-forwarded-for': '6.6.6.6, 2.2.2.2', 'x-real-ip': '3.3.3.3' })).toBe('1.1.1.1');
+    // The first entry is whatever the caller typed; the last is what the nearest proxy saw.
+    expect(ip({ 'x-forwarded-for': '6.6.6.6, 2.2.2.2' })).toBe('2.2.2.2');
+    expect(ip({ 'x-real-ip': '3.3.3.3' })).toBe('3.3.3.3');
+    expect(ip({})).toBe('unknown');
+  });
+});
+
 describe('handler', () => {
-  const cfg = (env: Record<string, string> = {}) => config({ GEMINI_API_KEY: 'g', GROQ_API_KEY: 'q', HOURLY_CAP: '2', ...env } as any);
-  const req = (body: unknown, origin = 'http://localhost:5173') =>
-    new Request('http://localhost/api/ai', { method: 'POST', headers: { origin, 'content-type': 'application/json', 'x-real-ip': '9.9.9.9' }, body: JSON.stringify(body) });
+  const cfg = (env: Record<string, string> = {}) => config({ GEMINI_API_KEY: 'g', GROQ_API_KEY: 'q', HOURLY_CAP: '2', TOKEN_SECRET: 'test-secret', ...env } as any);
+  const goodToken = () => issueToken(personKey('9.9.9.9'), 'test-secret').token;
+  const req = (body: unknown, origin = 'http://localhost:5173', token: string | null = goodToken()) =>
+    new Request('http://localhost/api/ai', {
+      method: 'POST',
+      headers: { origin, 'content-type': 'application/json', 'x-real-ip': '9.9.9.9', ...(token ? { 'x-vubicle-token': token } : {}) },
+      body: JSON.stringify(body),
+    });
+  const tokenReq = (origin = 'http://localhost:5173') => new Request('http://localhost/api/token', { method: 'POST', headers: { origin, 'x-real-ip': '9.9.9.9' } });
   const chat = { task: 'chat', question: 'What is ATP?', passages: [{ label: 'Bio.pdf, p. 2', text: 'ATP stores energy.' }] };
   const geminiOk = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: '{"covered":true,"answer":"ATP stores energy [1]."}' }] } }] }));
 
@@ -295,6 +399,40 @@ describe('handler', () => {
     expect(originAllowed('http://localhost:5173', prod)).toBe(false);
     expect(originAllowed('https://evil.example', prod)).toBe(false);
     expect(originAllowed(null, prod)).toBe(false);
+  });
+
+  it("refuses AI requests with no token, a bad token, or another IP's token", async () => {
+    const f = vi.fn(geminiOk);
+    const deps = { config: cfg(), store: memoryStore(), fetch: f as any };
+    const statusOf = async (token: string | null) => {
+      const res = await handleAi(req(chat, undefined, token), deps);
+      return [res.status, (await res.json()).reason];
+    };
+    expect(await statusOf(null)).toEqual([401, 'missing']);
+    expect(await statusOf(issueToken(personKey('9.9.9.9'), 'wrong-secret').token)).toEqual([401, 'bad-signature']);
+    expect(await statusOf(issueToken(personKey('8.8.8.8'), 'test-secret').token)).toEqual([401, 'wrong-ip']);
+    expect(await statusOf(issueToken(personKey('9.9.9.9'), 'test-secret', Date.now() - TOKEN_TTL_SEC * 1000 - 1).token)).toEqual([401, 'expired']);
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it('issues tokens only to Vubicle pages, and limits how many', async () => {
+    const deps = { config: cfg(), store: memoryStore() };
+    expect((await handleToken(tokenReq('https://evil.example'), deps)).status).toBe(403);
+    const res = await handleToken(tokenReq(), deps);
+    const { token, expiresIn } = await res.json();
+    expect(res.status).toBe(200);
+    expect(expiresIn).toBe(TOKEN_TTL_SEC);
+    expect(checkToken(token, personKey('9.9.9.9'), 'test-secret')).toBe('ok');
+    for (let i = 0; i < 29; i++) await handleToken(tokenReq(), deps);
+    expect((await handleToken(tokenReq(), deps)).status).toBe(429);
+  });
+
+  it('refuses everything in a deployment with no TOKEN_SECRET, and logs why', async () => {
+    const log = vi.fn();
+    const deps = { config: cfg({ TOKEN_SECRET: '', VERCEL_ENV: 'production', ALLOWED_ORIGINS: 'http://localhost:5173' }), store: memoryStore(), fetch: geminiOk as any, log };
+    expect((await handleToken(tokenReq(), deps)).status).toBe(503);
+    expect((await handleAi(req(chat), deps)).status).toBe(503);
+    expect(log).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('TOKEN_SECRET') }));
   });
 
   it('answers a chat request', async () => {
@@ -354,29 +492,47 @@ describe('handler', () => {
     expect(models).toEqual(['qwen/qwen3.8-27b', 'openai/gpt-oss-120b']);
   });
 
-  it('status lists every model in use and never a key', async () => {
+  it('status says only whether the service is set up', async () => {
     const env = process.env;
-    process.env = { ...env, GEMINI_API_KEY: 'secret-g', GROQ_API_KEY: 'secret-q' };
+    process.env = { ...env, GEMINI_API_KEY: 'secret-g', GROQ_API_KEY: 'secret-q', TOKEN_SECRET: 'secret-t' };
     try {
-      const text = await status().text();
-      expect(JSON.parse(text).groq).toEqual({ configured: true, model: 'openai/gpt-oss-120b', visionModel: 'qwen/qwen3.8-27b' });
-      expect(text).not.toContain('secret');
+      expect(await status().json()).toEqual({ ok: true });
+      process.env = { ...env, GEMINI_API_KEY: '', GROQ_API_KEY: '', TOKEN_SECRET: '' };
+      expect(await status().json()).toEqual({ ok: false });
     } finally {
       process.env = env;
     }
   });
 
   it('says when no keys are configured', async () => {
-    const res = await handleAi(req(chat), { config: config({} as any), store: memoryStore() });
+    const res = await handleAi(req(chat), { config: config({ TOKEN_SECRET: 'test-secret' } as any), store: memoryStore() });
     expect(res.status).toBe(503);
   });
 
   it('validates embedding input and normalises vectors', async () => {
     const f = vi.fn(async () => Response.json({ embeddings: [{ values: [3, 4] }] }));
     const deps = { config: cfg(), store: memoryStore(), fetch: f as any };
-    const bad = await handleEmbed(new Request('http://x', { method: 'POST', headers: { origin: 'http://localhost:5173', 'content-type': 'application/json' }, body: '{"texts":[]}' }), deps);
-    expect(bad.status).toBe(400);
-    const ok = await handleEmbed(new Request('http://x', { method: 'POST', headers: { origin: 'http://localhost:5173', 'content-type': 'application/json' }, body: '{"texts":["a"]}' }), deps);
+    expect((await handleEmbed(embedReq('{"texts":["a"]}', null), deps)).status).toBe(401);
+    expect((await handleEmbed(embedReq('{"texts":[]}'), deps)).status).toBe(400);
+    const ok = await handleEmbed(embedReq('{"texts":["a"]}'), deps);
     expect((await ok.json()).vectors).toEqual([[0.6, 0.8]]);
   });
+
+  it('caps embedding characters per hour', async () => {
+    const f = vi.fn(async (_url: string, init: any) => Response.json({ embeddings: JSON.parse(init.body).requests.map(() => ({ values: [1] })) }));
+    const deps = { config: cfg({ HOURLY_CAP: '60' }), store: memoryStore(), fetch: f as any };
+    const big = JSON.stringify({ texts: Array.from({ length: 64 }, () => 'x'.repeat(2000)) }); // 128,000 characters
+    const statuses: number[] = [];
+    for (let i = 0; i < 8; i++) statuses.push((await handleEmbed(embedReq(big), deps)).status);
+    // 1,000,000 characters an hour: seven full requests fit, the eighth does not.
+    expect(statuses.slice(0, 7)).toEqual(Array(7).fill(200));
+    expect(statuses[7]).toBe(429);
+  });
+
+  const embedReq = (body: string, token: string | null = goodToken()) =>
+    new Request('http://x', {
+      method: 'POST',
+      headers: { origin: 'http://localhost:5173', 'content-type': 'application/json', 'x-real-ip': '9.9.9.9', ...(token ? { 'x-vubicle-token': token } : {}) },
+      body,
+    });
 });

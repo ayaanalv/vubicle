@@ -11,9 +11,25 @@ export interface Pt {
  */
 const GRAVITY = 1.5;
 
+/**
+ * Above this many topics the force layout's all-pairs loop gets slow (400 rounds of n squared), so topics go
+ * on a circle instead. Maps from the AI have at most 16.
+ */
+export const FORCE_LIMIT = 300;
+
+/** Topics evenly spaced on an ellipse that fills the box. Instant for any number of topics. */
+export function circleLayout(ids: string[]): Map<string, Pt> {
+  const n = ids.length;
+  return new Map(ids.map((id, i) => {
+    const a = (i / Math.max(1, n)) * Math.PI * 2 - Math.PI / 2;
+    return [id, n === 1 ? { x: 0.5, y: 0.5 } : { x: 0.5 + Math.cos(a) * 0.38, y: 0.5 + Math.sin(a) * 0.4 }];
+  }));
+}
+
 /** Positions in 0..1 on both axes for an area of the given aspect ratio (width / height). */
 export function forceLayout(ids: string[], links: { from: string; to: string }[], aspect = 1.6, iterations = 400): Map<string, Pt> {
   const n = ids.length;
+  if (n > FORCE_LIMIT) return circleLayout(ids);
   const pos = ids.map((_, i) => {
     const a = (i / Math.max(1, n)) * Math.PI * 2;
     return { x: Math.cos(a) * 0.35 * aspect, y: Math.sin(a) * 0.35 };

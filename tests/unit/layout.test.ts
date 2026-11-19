@@ -32,4 +32,17 @@ describe('forceLayout', () => {
   it('ignores links to unknown topics and handles one node', () => {
     expect(forceLayout(['x'], [{ from: 'x', to: 'nope' }]).get('x')).toEqual({ x: 0.5, y: 0.5 });
   });
+  it('lays out thousands of topics instantly, on a circle, inside the box', () => {
+    const many = Array.from({ length: 5000 }, (_, i) => `t${i}`);
+    const t = Date.now();
+    const pos = forceLayout(many, many.slice(1).map((id) => ({ from: 't0', to: id })));
+    expect(Date.now() - t).toBeLessThan(200);
+    expect(pos.size).toBe(5000);
+    for (const p of pos.values()) {
+      expect(p.x).toBeGreaterThanOrEqual(0.1);
+      expect(p.x).toBeLessThanOrEqual(0.9);
+      expect(p.y).toBeGreaterThanOrEqual(0.09);
+      expect(p.y).toBeLessThanOrEqual(0.91);
+    }
+  });
 });

@@ -1,16 +1,8 @@
 import { config } from './_lib/config.js';
 
-// Lets Ayaan confirm the deployment is configured. Reports presence only, never values.
+// A public setup check. It says only whether the AI service is set up, so it tells a stranger nothing about
+// which models, limits or stores are behind it.
 export function GET() {
   const c = config();
-  return Response.json(
-    {
-      ok: Boolean(c.geminiKey || c.groqKey),
-      gemini: { configured: Boolean(c.geminiKey), models: c.geminiModels, embedModel: c.geminiEmbedModel },
-      groq: { configured: Boolean(c.groqKey), model: c.groqModel, visionModel: c.groqVisionModel },
-      rateLimitStore: c.redisUrl && c.redisToken ? 'upstash' : 'memory',
-      hourlyCap: c.hourlyCap,
-    },
-    { headers: { 'Cache-Control': 'no-store' } },
-  );
+  return Response.json({ ok: Boolean((c.geminiKey || c.groqKey) && c.tokenSecret) }, { headers: { 'Cache-Control': 'no-store' } });
 }

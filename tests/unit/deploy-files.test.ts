@@ -63,4 +63,7 @@ describe('security headers', () => {
     expect(get('Permissions-Policy')).toContain('camera=()');
     expect(get('Permissions-Policy')).toContain('microphone=()');
   });
+  it('tells browsers to use HTTPS only, without joining the preload list', () => {
+    expect(get('Strict-Transport-Security')).toBe('max-age=63072000; includeSubDomains');
+  });
 });
