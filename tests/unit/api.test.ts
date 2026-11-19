@@ -277,6 +277,23 @@ describe('rate limit', () => {
 });
 
 describe('tasks', () => {
+  it('asks for plain-text math in every task that writes text a student reads', () => {
+    const passages = [{ label: 'Lecture.pdf, p. 1', text: 'v = sqrt(G M / r)' }];
+    const bodies: Record<string, unknown> = {
+      chat: { question: 'Why?', passages },
+      tutor: { passages },
+      flashcards: { passages },
+      quiz: { passages },
+      grade: { question: 'Q', reference: 'R', answer: 'A', passages },
+      map: { passages },
+      brief: { passages, format: 'summary', length: 'short' },
+    };
+    for (const [task, body] of Object.entries(bodies)) {
+      const system = plan(task as any, body).prompt(40_000).system;
+      expect(system, task).toContain('Never use LaTeX');
+    }
+  });
+
   it('rejects requests without passages or with oversized input', () => {
     expect(() => plan('chat', { question: 'hi' })).toThrow(BadRequest);
     expect(() => plan('chat', { question: 'x'.repeat(5000), passages: [{ label: 'p', text: 't' }] })).toThrow(/too long/);

@@ -9,7 +9,7 @@ test.skip(!process.env.README_SHOTS, 'README screenshots: README_SHOTS=1 npx pla
 test.use({ baseURL: process.env.README_URL || 'https://vubicle.com', viewport: { width: 1440, height: 900 }, colorScheme: 'light' });
 test.setTimeout(8 * 60_000);
 
-const OUT = 'docs/screenshots';
+const OUT = process.env.README_OUT || 'docs/screenshots';
 const AI = { timeout: 120_000 };
 
 const lecture = makePdf([
@@ -21,17 +21,35 @@ const lecture = makePdf([
   ['Gravitational potential energy: U = -G M m / r, with zero at infinity.', 'It is negative because work must be done to separate the masses.', 'Common mistake: using U = m g h far from the surface. It only holds near it.'],
   ['Geostationary orbit: period 24 h, altitude about 35,800 km above the equator.', 'Satellites there stay over one point and are used for weather and TV.', 'Exam note: expect one question on orbital period and one on escape speed.'],
 ]);
+// Dates count from the day the script runs, so the midterm is always "In 3 days" in the screenshot.
+const day = (offset: number) =>
+  new Date(Date.now() + offset * 86_400_000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 const syllabus = makeDocx([
   '# PHYS 1080 course outline',
   'Instructor office hours are Tuesdays 2 to 4 pm.',
   '# Evaluation',
   'Weekly online quizzes, 10% in total.',
   'Lab reports, 15% in total, due each Friday.',
-  'Assignment 1 due October 2, 2026, worth 5%.',
-  'Midterm exam on November 3, 2026, worth 25%.',
-  'Assignment 2 due November 14, 2026, worth 5%.',
+  `Assignment 1 due ${day(-10)}, worth 5%.`,
+  `Midterm exam on ${day(3)}, worth 25%.`,
+  `Assignment 2 due ${day(14)}, worth 5%.`,
   'Final exam during the December exam period, worth 40%.',
 ]);
+
+/**
+ * A partly right answer to whatever the tutor asks first, so the screenshot shows a sensible exchange.
+ * Each answer gets one thing right from the lecture and leaves something out.
+ */
+const TUTOR_ANSWERS: [RegExp, string][] = [
+  [/escape/i, 'It is about 11.2 km/s from Earth, because the total energy has to reach zero.'],
+  [/potential energy|negative/i, 'It is negative because the masses attract each other.'],
+  [/geostationary|24 h/i, 'It takes 24 hours to go around, so it stays over one place.'],
+  [/kepler|ellip|equal areas|perihelion|aphelion|T\^2|third law/i, 'Planets move in ellipses with the Sun at one focus.'],
+  [/circular|orbit(al)? speed|lower orbit|ISS|centripetal/i, 'Lower orbits are faster. The ISS moves at about 7.7 km/s.'],
+  [/newton|gravitational force|gravity|attract/i, 'Every mass attracts every other mass, and the pull gets weaker with distance.'],
+];
+const tutorAnswer = (question: string) =>
+  TUTOR_ANSWERS.find(([re]) => re.test(question))?.[1] ?? 'I think it depends on the masses and the distance between them.';
 
 const shot = (page: Page, name: string) => page.screenshot({ path: `${OUT}/${name}.jpg`, type: 'jpeg', quality: 82 });
 
@@ -104,7 +122,7 @@ test('readme screenshots', async ({ page }) => {
   await page.getByLabel('Topic (optional)').fill('escape velocity');
   await page.getByRole('button', { name: 'Start a session' }).click();
   await expect(page.locator('.msg.ai')).toBeVisible(AI);
-  await page.getByLabel('Your answer').fill('It is about 11.2 km/s from Earth, because the total energy has to reach zero.');
+  await page.getByLabel('Your answer').fill(tutorAnswer(await page.locator('.msg.ai').last().innerText()));
   await page.keyboard.press('Enter');
   await expect(page.locator('.verdict')).toBeVisible(AI);
   await shot(page, 'tutor');

@@ -193,6 +193,11 @@ test('quizzes grade instantly, give partial credit, and are saved for retakes', 
   await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
   await page.getByRole('tab', { name: 'Quiz' }).click();
   await page.getByRole('button', { name: 'Write a quiz' }).click();
+  // The question number and its text share one line: the legend is one line tall.
+  const legend = page.locator('fieldset.question legend').first();
+  await expect(legend).toHaveText(/^1\. \S/);
+  const lineHeight = await legend.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.6);
+  expect((await legend.boundingBox())!.height).toBeLessThan(lineHeight * 1.5);
   await page.getByLabel(/lecture4\.pdf, p\. \d/).check();
   await page.getByLabel('Yes').check();
   await page.getByPlaceholder('Your answer').fill('Planets move in ellipses around the Sun.');

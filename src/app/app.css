@@ -1496,6 +1496,10 @@ pre.code-block code {
 .rich-line {
   display: block;
 }
+/* A single line stays in the flow, so a quiz question sits on the same line as its number ("1. What..."). */
+.rich-line:only-child {
+  display: inline;
+}
 .rich-line + .rich-line {
   margin-top: 6px;
 }
