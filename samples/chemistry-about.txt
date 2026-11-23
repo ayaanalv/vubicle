@@ -1,0 +1,11 @@
+About this sample
+
+Source: the Wikipedia article "VSEPR theory", revision 1384733653 (9 November 2026). Permanent link to that revision: https://en.wikipedia.org/w/index.php?title=VSEPR_theory&oldid=1384733653
+
+Authors: Wikipedia contributors. The full list is in the article's history: https://en.wikipedia.org/w/index.php?title=VSEPR_theory&action=history
+
+Changes: the article was shortened to four pages. Most sections, the figures, the tables and the references were left out, a few sentences were trimmed, and formulas, charges and angles were rewritten as plain text.
+
+License: Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0), https://creativecommons.org/licenses/by-sa/4.0/ . This excerpt, and the flashcards, quiz, concept map and chat answers in this sample, are shared under the same license.
+
+How it was made: the flashcards, quiz, concept map and chat answers were written once by AI (Google Gemini) from this excerpt, when the sample was built. Opening the sample sends nothing to an AI; asking new questions does.

@@ -1,0 +1,61 @@
+Kepler's laws of planetary motion
+
+In astronomy, Kepler's laws of planetary motion give good approximations for the orbits of planets around the Sun. They were published by Johannes Kepler from 1609 to 1621 in three works Astronomia nova, Harmonice Mundi and Epitome Astronomiae Copernicanae. The laws were based on Kepler's concept of solar fibrils adapted to the accurate astronomical data of Tycho Brahe. These laws replaced the circular orbits and epicycles of Copernicus's heliostatic model of the planets with a heliocentric model that described elliptical orbits with planetary velocities that vary accordingly. The three laws state that:
+
+1. The orbit of a planet is an ellipse with the Sun at one of the two foci.
+2. A line segment joining a planet and the Sun sweeps out equal areas during equal intervals of time.
+3. The square of a planet's orbital period is proportional to the cube of the length of the semi-major axis of its orbit.
+
+The elliptical orbits of planets were indicated by calculations of the orbit of Mars. From this, Kepler inferred that other bodies in the Solar System, including those farther away from the Sun, also have elliptical orbits. The second law establishes that when a planet is closer to the Sun, it travels faster. The third law expresses that the farther a planet is from the Sun, the longer its orbital period.
+
+Comparison to Copernicus
+
+Johannes Kepler's laws improved the model of Copernicus. According to Copernicus: the planetary orbit is a circle with epicycles; the Sun is approximately at the center of the orbit; the speed of the planet in the main orbit is constant.
+
+Despite being correct in saying that the planets revolved around the Sun, Copernicus was incorrect in defining their orbits. Introducing physical explanations for movement in space beyond just geometry, Kepler correctly defined the orbit of planets as follows: the planetary orbit is not a circle with epicycles, but an ellipse; the Sun is not at the center but at a focal point of the elliptical orbit; neither the linear speed nor the angular speed of the planet in the orbit is constant, but the area speed (closely linked historically with the concept of angular momentum) is constant.
+---- page ----
+History
+
+Kepler's laws were developed based on a physical theory of planetary motion in which the Sun emitted magnetic fibrils which pulled the planets into orbits. The fibrils were somewhat elastic allowing non-circular motion driven by the inertia of the planets.
+
+In Astronomia nova (1609), Kepler articulated his first law, showing that Mars' orbit is elliptical, having found them by analyzing the astronomical observations of Tycho Brahe. Kepler had believed in the Copernican model of the Solar System, which called for circular orbits, but he could not reconcile Brahe's highly precise observations with a circular fit to Mars' orbit - Mars coincidentally having the highest eccentricity of all planets except Mercury. His first law reflected this discovery.
+
+In his Astronomia nova (1609), Kepler did not present his second law in its modern form. He did that only in his Epitome Astronomiae Copernicanae of 1621. Kepler had two versions of the second law, related in a qualitative sense: the first "distance law" and later the "area law". The distance form was only correct for orbits that were almost circular, but the area form was correct for all elliptical orbit. The "area law" is what became the second law in the set of three.
+
+Kepler's third law was published in 1619 in his Harmonice Mundi. In 1621, Kepler noted that his third law applies to the four brightest moons of Jupiter. Godefroy Wendelin, the first well-known astronomer to adopt Kepler's laws, gave a detailed account of the third law in 1652.
+
+Kepler's work had little initial impact. His work was a strong defense of Copernicanism which had fallen out of fashion in part because of opposition by Tycho Brahe. In 1627 Kepler published the Rudolphine Tables containing many accurate astronomical observations accumulated by Brahe. The breadth and accuracy of the tables allowed astronomers to compare Kepler's formula to good quality data.
+
+Newton understood that the second law is not special to the inverse-square law of gravitation, being a consequence just of the radial nature of that law, whereas the other laws do depend on the inverse-square form of the attraction.
+---- page ----
+First law
+
+Kepler's first law states that the orbit of every planet is an ellipse with the sun at one of the two foci.
+
+Mathematically, an ellipse can be represented by the formula r = p / (1 + e cos(theta)), where p is the semi-latus rectum, e is the eccentricity of the ellipse, r is the distance from the Sun to the planet, and theta is the angle to the planet's current position from its closest approach, as seen from the Sun. So (r, theta) are polar coordinates.
+
+For an ellipse, 0 < e < 1; in the limiting case e = 0, the orbit is a circle with the Sun at the centre (i.e. where there is zero eccentricity).
+
+At theta = 0 degrees, perihelion, the distance is minimal: r_min = p / (1 + e). At theta = 180 degrees, aphelion, the distance is maximal: r_max = p / (1 - e). The semi-major axis a is the arithmetic mean between r_min and r_max: a = (r_max + r_min) / 2. The area of the ellipse is A = pi a b, where b is the semi-minor axis. The special case of a circle is e = 0, resulting in r = p = r_min = r_max = a = b and A = pi r^2.
+
+Second law
+
+Kepler's second law states that a line joining a planet and the Sun sweeps out equal areas during equal intervals of time.
+
+The orbital radius and angular velocity of the planet in the elliptical orbit will vary: the planet travels faster when closer to the Sun, then slower when farther from the Sun.
+
+Kepler notably arrived at this law through assumptions that were either only approximately true or outright false. He assumed that planets are pushed around the Sun by a force from the Sun, and that this propelling force is inversely proportional to the distance from the Sun. Because Kepler believed that force would be proportional to velocity, it followed that velocity would be inverse to the distance from the sun. The errors in these assumptions essentially cancel, so that it is approximately true that velocity is inverse to the distance from the sun.
+
+Nevertheless, the result of the second law is exactly true, as it is logically equivalent to the conservation of angular momentum, which is true for any body experiencing a radially symmetric force. Since any radial force will produce no torque on the planet's motion, angular momentum will be conserved.
+---- page ----
+Third law
+
+Kepler's third law states that the ratio of the square of an object's orbital period with the cube of the semi-major axis of its orbit is the same for all objects orbiting the same primary. Symbolically, T^2 is proportional to a^3, where T is the object's orbital period and a is the semi-major axis of its orbit.
+
+This captures the relationship between the distance of planets from the Sun, and their orbital periods.
+
+Kepler enunciated in 1619 this third law in a laborious attempt to determine what he viewed as the "music of the spheres" according to precise laws, and express it in terms of musical notation. It was therefore known as the harmonic law. The original form of this law (referring to not the semi-major axis, but rather a "mean distance") holds true only for planets with small eccentricities near zero.
+
+Using Newton's law of gravitation (published 1687), this relation can be found in the case of a circular orbit by setting the centripetal force equal to the gravitational force: m r w^2 = G m M / r^2, where w is the angular velocity. Then, expressing the angular velocity w in terms of the orbital period T, w = 2 pi / T, and rearranging, Kepler's third law is obtained: T^2 = (4 pi^2 / (G M)) r^3, so T^2 is proportional to r^3.
+
+A more detailed derivation can be done with general elliptical orbits, instead of circles, as well as orbiting the center of mass, instead of just the large mass. This results in replacing a circular radius r with the semi-major axis a of the elliptical relative motion of one mass relative to the other, as well as replacing the large mass M with M + m.

@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { zipSync, strToU8 } from 'fflate';
 import { Download, Trash2 } from 'lucide-react';
-import { byCubicle, changed, db, deleteCubicle, uid, PER_CUBICLE, type Cubicle } from './db';
+import { byCubicle, changed, cubicles, db, deleteCubicle, uid, PER_CUBICLE, type Cubicle } from './db';
+import type { Sample } from './samples';
 import { Dialog } from './ui';
 import { FORMAT, VERSION, readBackupZip, readManifest, buildImport, fitsInBackup, BackupError, TOO_BIG_TO_EXPORT } from '../lib/backup';
 
@@ -49,6 +50,23 @@ export async function importBackup(file: File): Promise<Cubicle> {
   changed('cubicles');
   PER_CUBICLE.forEach(changed);
   return r.cubicle;
+}
+
+/**
+ * Opens a sample: the cubicle if this browser already has it, otherwise its backup file imported through the
+ * same checks as any backup. No AI request. Returns the cubicle's id.
+ */
+export async function openSample(sample: Sample): Promise<string> {
+  const have = (await cubicles()).find((c) => c.name === sample.name);
+  if (have) return have.id;
+  let res: Response;
+  try {
+    res = await fetch(`/samples/${sample.id}.vubicle`);
+  } catch {
+    throw new Error('That sample could not be downloaded. Check your connection and try again.');
+  }
+  if (!res.ok) throw new Error('That sample could not be downloaded. Try again in a moment.');
+  return (await importBackup(new File([await res.blob()], `${sample.id}.vubicle`))).id;
 }
 
 export function DeleteCubicle({ cubicle, open, onClose }: { cubicle: Cubicle; open: boolean; onClose: () => void }) {

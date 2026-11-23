@@ -1,0 +1,9 @@
+About this sample
+
+Source: "The Tell-Tale Heart" by Edgar Allan Poe, first published in 1843, as printed in The Works of the Late Edgar Allan Poe (1850), Volume 1. The text comes from Wikisource, revision 14833580. Permanent link to that revision: https://en.wikisource.org/w/index.php?oldid=14833580
+
+License: public domain. The story was published before 1931 and its author died more than 100 years ago, so anyone may use it.
+
+Changes: the full story is included. Long dashes are written as "--" and curly quotes as straight ones, and the story is split into four pages.
+
+How it was made: the flashcards, quiz, concept map and chat answers were written once by AI (Google Gemini) from this text, when the sample was built. Opening the sample sends nothing to an AI; asking new questions does.

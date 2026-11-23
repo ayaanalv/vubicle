@@ -1,0 +1,11 @@
+About this sample
+
+Source: the Wikipedia article "Kepler's laws of planetary motion", revision 1386652255 (19 November 2026). Permanent link to that revision: https://en.wikipedia.org/w/index.php?title=Kepler%27s_laws_of_planetary_motion&oldid=1386652255
+
+Authors: Wikipedia contributors. The full list is in the article's history: https://en.wikipedia.org/w/index.php?title=Kepler%27s_laws_of_planetary_motion&action=history
+
+Changes: the article was shortened to four pages. Most sections, the figures and the references were left out, a few sentences were trimmed, and the math was rewritten as plain text.
+
+License: Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0), https://creativecommons.org/licenses/by-sa/4.0/ . This excerpt, and the flashcards, quiz, concept map and chat answers in this sample, are shared under the same license.
+
+How it was made: the flashcards, quiz, concept map and chat answers were written once by AI (Google Gemini) from this excerpt, when the sample was built. Opening the sample sends nothing to an AI; asking new questions does.

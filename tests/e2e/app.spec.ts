@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { mockAi } from '../mock-ai';
 import { makePdf, makePptx, makeDocx } from '../fixtures/make';
+import { SAMPLES } from '../../src/app/samples';
 
 const lecture = makePdf([
   ['Lecture 4: Orbits and gravitation', 'Kepler showed that planets move in elliptical orbits with the Sun at one focus.'],
@@ -467,4 +468,49 @@ test('the AI endpoints refuse requests without a valid token, and the page gets 
   await expect.poll(() => sent.length).toBeGreaterThan(0);
   await expect.poll(() => issued.length).toBeGreaterThan(0);
   expect(sent.every((t) => t !== null && issued.includes(t))).toBe(true);
+});
+
+for (const sample of SAMPLES) {
+  test(`the ${sample.id} sample opens with everything made, and sends nothing to the API`, async ({ page }) => {
+    const api: string[] = [];
+    page.on('request', (r) => r.url().includes('/api/') && api.push(r.url()));
+    await page.goto('/app/');
+    await page.getByRole('button', { name: 'I understand' }).click();
+    await page.getByRole('button', { name: sample.label }).click();
+    await expect(page.getByLabel('Cubicle', { exact: true }).locator('option:checked')).toHaveText(sample.name);
+    const files = page.getByRole('list', { name: 'Files in this cubicle' });
+    await expect(files.getByText(sample.file)).toBeVisible();
+    await expect(files.getByText('About this sample')).toBeVisible();
+
+    // Three cited answers, and a citation opens the page it came from.
+    await page.getByRole('tab', { name: 'Chat' }).click();
+    await expect(page.locator('.msg.ai')).toHaveCount(3);
+    await page.locator('.msg.ai').first().getByRole('button', { name: /^Open source/ }).first().click();
+    await expect(page.getByRole('complementary', { name: 'Source' }).getByRole('heading', { name: sample.file })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('tab', { name: /Flashcards/ }).click();
+    await expect(page.locator('ul.list > li')).toHaveCount(10);
+    expect(new Set(await page.locator('ul.list .level').allTextContents())).toEqual(new Set(['Difficulty: Easy', 'Difficulty: Medium', 'Difficulty: Hard']));
+    await page.getByRole('tab', { name: 'Quiz' }).click();
+    await expect(page.getByText('8 questions · not taken yet')).toBeVisible();
+    await page.getByRole('tab', { name: 'Concept map' }).click();
+    expect(await page.locator('.node').count()).toBeGreaterThanOrEqual(4);
+
+    // Opening it again goes to the same cubicle instead of a second copy.
+    await page.goto(`/app/?sample=${sample.id}`);
+    await expect(page.getByLabel('Cubicle', { exact: true }).locator('option:checked')).toHaveText(sample.name);
+    await expect(page.getByLabel('Cubicle', { exact: true }).locator('option', { hasText: sample.name })).toHaveCount(1);
+    expect(api).toEqual([]);
+  });
+}
+
+test('a sample link opens the sample on a first visit', async ({ page }) => {
+  const api: string[] = [];
+  page.on('request', (r) => r.url().includes('/api/') && api.push(r.url()));
+  await page.goto('/app/?sample=chemistry');
+  await page.getByRole('button', { name: 'I understand' }).click();
+  await expect(page.getByLabel('Cubicle', { exact: true }).locator('option:checked')).toHaveText(SAMPLES[1].name);
+  await expect(page).toHaveURL(/\/app\/$/);
+  expect(api).toEqual([]);
 });

@@ -16,7 +16,7 @@ npx tsc --noEmit                 # typecheck (npm run build = typecheck + vite b
 npm run art                      # regenerate public/art AVIF/WebP sizes from art/*.jpg
 ```
 
-Opt-in browser suites skip unless set: `SHOTS=1` (design screenshots), `README_SHOTS=1` (README images, uses the live site and real AI), `SITE_URL=https://vubicle.com` (run the image test against a deploy). CI (.github/workflows/ci.yml) runs typecheck, unit tests, build, then Playwright in the `mcr.microsoft.com/playwright:v1.64.1-noble` image.
+Opt-in browser suites skip unless set: `SHOTS=1` (design screenshots), `README_SHOTS=1` (README images, uses the live site and real AI), `MAKE_SAMPLES=1` (rebuilds `public/samples/*.vubicle` from `samples/` with real AI; needs keys in `.env.local` and `npm run dev`), `SITE_URL=https://vubicle.com` (run the image test against a deploy). CI (.github/workflows/ci.yml) runs typecheck, unit tests, build, then Playwright in the `mcr.microsoft.com/playwright:v1.64.1-noble` image.
 
 ## Architecture
 
@@ -34,6 +34,7 @@ Opt-in browser suites skip unless set: `SHOTS=1` (design screenshots), `README_S
 - Model text is rendered only through `src/app/rich.tsx` (never `innerHTML`; a unit test enforces it). Use `inline` mode inside buttons and labels.
 - Bump `CACHE_VERSION` in `src/app/api.ts` when a prompt change should stop old cached answers from being reused.
 - Default model order is Flash-Lite first: 3.8 Flash hung and returned 503 for minutes in production. Model names are env vars.
+- Sample cubicles (`src/app/samples.ts`, `public/samples/`) are ordinary backups opened through `importBackup`, with embeddings included so opening one makes no API request. Sources must allow sending text to an AI: OpenStax now forbids it, so the samples use Wikipedia (CC BY-SA 4.0, linked by revision) and public domain text.
 - Backups are untrusted input: `src/lib/backup.ts` unzips as a stream with byte and entry limits and rebuilds every record from an allowlist. Add new record fields there or they are dropped on import.
 - Upstash vars may be `UPSTASH_REDIS_REST_*` or the Vercel Marketplace's `KV_REST_API_*`; both are read.
 - Copy style (UI and docs): short sentences, sentence-case headings, no em dashes, no hype words.

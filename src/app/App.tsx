@@ -12,7 +12,8 @@ import { Briefs } from './Briefs';
 import { Viewer } from './Viewer';
 import { Timer } from './Timer';
 import { PrivacyGate, PrivacyText } from './Privacy';
-import { exportCubicle, importBackup, DeleteCubicle } from './Backup';
+import { exportCubicle, importBackup, openSample, DeleteCubicle } from './Backup';
+import { SAMPLES } from './samples';
 import { embedPending, storageErrorMessage } from './ingest';
 
 export type Tool = 'chat' | 'tutor' | 'cards' | 'quiz' | 'map' | 'briefs' | 'deadlines';
@@ -70,6 +71,18 @@ export function App() {
   useEffect(() => {
     if (subject && SUBJECTS[subject]) setCreating(true);
   }, [subject]);
+
+  // /app/?sample=physics opens that sample straight away (links from the landing page).
+  useEffect(() => {
+    const sample = SAMPLES.find((s) => s.id === new URLSearchParams(location.search).get('sample'));
+    if (!sample) return;
+    openSample(sample)
+      .then((id) => {
+        writeLocal('vubicle.current', id);
+        location.replace(location.pathname);
+      })
+      .catch(() => history.replaceState(null, '', location.pathname));
+  }, []);
 
   const cubicle = list?.find((c) => c.id === current) ?? list?.[0];
   useEffect(() => {
@@ -154,8 +167,51 @@ function FirstRun({ onCreate }: { onCreate: () => void }) {
           <Plus aria-hidden="true" /> Create a cubicle
         </button>
         <ImportButton />
+        <SampleButtons />
       </main>
     </div>
+  );
+}
+
+/** Opens a ready-made sample cubicle, so someone can try every tool without uploading anything. */
+function SampleButtons() {
+  const [opening, setOpening] = useState('');
+  const [error, setError] = useState('');
+  return (
+    <section aria-labelledby="samples-title" style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+      <h2 id="samples-title">Try a sample</h2>
+      <p>A short reading with flashcards, a quiz, a concept map and cited answers already made. Opening one sends nothing to an AI.</p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {SAMPLES.map((s) => (
+          <button
+            key={s.id}
+            className="btn"
+            disabled={Boolean(opening)}
+            onClick={async () => {
+              setOpening(s.id);
+              setError('');
+              try {
+                writeLocal('vubicle.current', await openSample(s));
+                location.reload();
+              } catch (e) {
+                setError((e as Error).message);
+                setOpening('');
+              }
+            }}
+          >
+            {opening === s.id ? 'Opening…' : s.label}
+          </button>
+        ))}
+      </div>
+      <p className="hint">
+        Samples are excerpts of Wikipedia articles (CC BY-SA 4.0) and Edgar Allan Poe’s “The Tell-Tale Heart” (public domain). Each one has an “About this sample” note with its source and license.
+      </p>
+      {error && (
+        <p className="notice bad" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 

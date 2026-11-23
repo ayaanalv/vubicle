@@ -1,0 +1,47 @@
+VSEPR theory
+
+Valence shell electron pair repulsion (VSEPR) theory is a model used in chemistry to predict the geometry of individual molecules from the number of electron pairs surrounding their central atoms. It is also named the Gillespie-Nyholm theory after its two main developers, Ronald Gillespie and Ronald Nyholm but it is also called the Sidgwick-Powell theory after earlier work by Nevil Sidgwick and Herbert Marcus Powell.
+
+The premise of VSEPR is that the valence electron pairs surrounding an atom tend to repel each other. The greater the repulsion, the higher in energy (less stable) the molecule is. Therefore, the VSEPR-predicted molecular geometry of a molecule is the one that has as little of this repulsion as possible. Gillespie has emphasized that the electron-electron repulsion due to the Pauli exclusion principle is more important in determining molecular geometry than the electrostatic repulsion.
+
+History
+
+The idea of a correlation between molecular geometry and number of valence electron pairs (both shared and unshared pairs) was originally proposed in 1939 by Ryutaro Tsuchida in Japan, and was independently presented in a Bakerian Lecture in 1940 by Nevil Sidgwick and Herbert Powell of the University of Oxford. In 1957, Ronald Gillespie and Ronald Sydney Nyholm of University College London refined this concept into a more detailed theory, capable of choosing between various alternative geometries.
+---- page ----
+Overview
+
+VSEPR theory is used to predict the arrangement of electron pairs around central atoms in molecules, especially simple and symmetric molecules. A central atom is defined in this theory as an atom which is bonded to two or more other atoms, while a terminal atom is bonded to only one other atom. For example, in the molecule methyl isocyanate (H3C-N=C=O), the two carbons and one nitrogen are central atoms, and the three hydrogens and one oxygen are terminal atoms. The geometry of the central atoms and their non-bonding electron pairs in turn determine the geometry of the larger whole molecule.
+
+The number of electron pairs in the valence shell of a central atom is determined after drawing the Lewis structure of the molecule, and expanding it to show all bonding groups and lone pairs of electrons. In VSEPR theory, a double bond or triple bond is treated as a single bonding group. The sum of the number of atoms bonded to a central atom and the number of lone pairs formed by its nonbonding valence electrons is known as the central atom's steric number.
+
+The electron pairs (or groups if multiple bonds are present) are assumed to lie on the surface of a sphere centered on the central atom and tend to occupy positions that minimize their mutual repulsions by maximizing the distance between them. The number of electron pairs (or groups), therefore, determines the overall geometry that they will adopt. For example, when there are two electron pairs surrounding the central atom, their mutual repulsion is minimal when they lie at opposite poles of the sphere. Therefore, the central atom is predicted to adopt a linear geometry. If there are 3 electron pairs surrounding the central atom, their repulsion is minimized by placing them at the vertices of an equilateral triangle centered on the atom. Therefore, the predicted geometry is trigonal. Likewise, for 4 electron pairs, the optimal arrangement is tetrahedral.
+
+As a tool in predicting the geometry adopted with a given number of electron pairs, an often used physical demonstration of the principle of minimal electron pair repulsion utilizes inflated balloons. Through handling, balloons acquire a slight surface electrostatic charge that results in the adoption of roughly the same geometries when they are tied together at their stems as the corresponding number of electron pairs. For example, five balloons tied together adopt the trigonal bipyramidal geometry, just as do the five bonding pairs of a PCl5 molecule.
+---- page ----
+Steric number
+
+The steric number of a central atom in a molecule is the number of atoms bonded to that central atom, called its coordination number, plus the number of lone pairs of valence electrons on the central atom. In the molecule SF4, for example, the central sulfur atom has four ligands; the coordination number of sulfur is four. In addition to the four ligands, sulfur also has one lone pair in this molecule. Thus, the steric number is 4 + 1 = 5.
+
+Alternatively, the steric number can be determined for main-group elements using an algebraic electron-counting formula. This method sums the relevant valence electrons and divides by 2 to determine the number of electron pairs (domains). The formula is SN = (V + M - C + A) / 2, where V is the number of valence electrons on the central atom, M is the number of atoms bonded to the central atom by single bonds, C is the charge of the cation (subtracted), and A is the charge of the anion (added).
+
+For the xenon tetrafluoride molecule (XeF4): xenon (group 18) has 8 valence electrons (V = 8), there are 4 bonded fluorine atoms, each contributing 1 electron (M = 4), and the molecule is neutral (C = 0, A = 0). So SN = (8 + 4 - 0 + 0) / 2 = 6 electron pairs. A steric number of 6 corresponds to an octahedral electron geometry. Since there are 4 bonded atoms, the molecule contains 2 lone pairs (6 - 4 = 2), resulting in a square planar molecular geometry.
+
+Degree of repulsion
+
+The overall geometry is further refined by distinguishing between bonding and nonbonding electron pairs. The bonding electron pair shared in a sigma bond with an adjacent atom lies further from the central atom than a nonbonding (lone) pair of that atom, which is held close to its positively charged nucleus. VSEPR theory therefore views repulsion by the lone pair to be greater than the repulsion by a bonding pair. Lone pair-lone pair (lp-lp) repulsions are considered stronger than lone pair-bonding pair (lp-bp) repulsions, which in turn are considered stronger than bonding pair-bonding pair (bp-bp) repulsions.
+---- page ----
+Lone pairs and bond angles
+
+The difference between lone pairs and bonding pairs may also be used to rationalize deviations from idealized geometries. For example, the H2O molecule has four electron pairs in its valence shell: two lone pairs and two bond pairs. The four electron pairs are spread so as to point roughly towards the apices of a tetrahedron. However, the bond angle between the two O-H bonds is only 104.5 degrees, rather than the 109.5 degrees of a regular tetrahedron, because the two lone pairs (whose density or probability envelopes lie closer to the oxygen nucleus) exert a greater mutual repulsion than the two bond pairs.
+
+A bond of higher bond order also exerts greater repulsion since the pi bond electrons contribute. For example, in isobutylene, (H3C)2C=CH2, the H3C-C=C angle (124 degrees) is larger than the H3C-C-CH3 angle (111.5 degrees). However, in the carbonate ion, CO3 (2-), all three C-O bonds are equivalent with angles of 120 degrees due to resonance.
+
+AXE method
+
+The "AXE method" of electron counting is commonly used when applying the VSEPR theory. The electron pairs around a central atom are represented by a formula AXmEn, where A represents the central atom and always has an implied subscript one. Each X represents a ligand (an atom bonded to A). Each E represents a lone pair of electrons on the central atom. The total number of X and E is known as the steric number. For example, in a molecule AX3E2, the atom A has a steric number of 5.
+
+Examples
+
+The methane molecule (CH4) is tetrahedral because there are four pairs of electrons. The four hydrogen atoms are positioned at the vertices of a tetrahedron, and the bond angle is about 109.5 degrees. This is referred to as an AX4 type of molecule.
+
+The ammonia molecule (NH3) has three pairs of electrons involved in bonding, but there is a lone pair of electrons on the nitrogen atom. It is not bonded with another atom; however, it influences the overall shape through repulsions. As in methane above, there are four regions of electron density. Therefore, the overall orientation of the regions of electron density is tetrahedral. On the other hand, there are only three outer atoms. This is referred to as an AX3E type molecule because the lone pair is represented by an E. By definition, the molecular shape or geometry describes the geometric arrangement of the atomic nuclei only, which is trigonal-pyramidal for NH3.

@@ -65,3 +65,32 @@ export function makeDocx(paras: string[]): Uint8Array {
     .join('');
   return zipSync({ 'word/document.xml': strToU8(`<w:document><w:body>${body}</w:body></w:document>`) });
 }
+
+/**
+ * A PDF from plain text: pages split on "---- page ----", paragraphs on blank lines, each paragraph wrapped to
+ * 76 characters. A page that runs past 46 lines continues on the next PDF page. Text must be plain ASCII,
+ * which the built-in Helvetica font can show.
+ */
+export function makeTextPdf(text: string): Uint8Array {
+  const wrap = (para: string) => {
+    const lines: string[] = [];
+    let line = '';
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      if (line && line.length + 1 + word.length > 76) {
+        lines.push(line);
+        line = word;
+      } else line = line ? `${line} ${word}` : word;
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
+  const pages: string[][] = [];
+  for (const page of text.split(/^---- page ----$/m)) {
+    const lines = page
+      .trim()
+      .split(/\n\s*\n/)
+      .flatMap((p, i) => [...(i ? [''] : []), ...wrap(p)]);
+    for (let i = 0; i < lines.length; i += 46) pages.push(lines.slice(i, i + 46));
+  }
+  return makePdf(pages);
+}
