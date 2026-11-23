@@ -378,8 +378,6 @@ test('the menu shows the last backup, and a week without one brings a reminder',
   const reminder = page.getByRole('status').filter({ hasText: 'Your work is stored only in this browser' });
   await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
   await expect(page.getByText('2 pages', { exact: false })).toBeVisible();
-  // Asked the browser to keep storage once, on the first file.
-  expect(await page.evaluate(() => localStorage.getItem('vubicle.persistAsked'))).toBe('1');
 
   await menu.click();
   await expect(page.getByText('Never backed up')).toBeVisible();
@@ -416,6 +414,44 @@ test('the menu shows the last backup, and a week without one brings a reminder',
   await page.reload();
   await expect(page.getByRole('tab', { name: 'Chat' })).toBeVisible();
   await expect(reminder).toHaveCount(0);
+});
+
+test('persistent storage is asked for once per visit, and not when already granted', async ({ page }) => {
+  // A stand-in for the browser's storage API that counts calls. `vubicle.test.persisted` says whether storage is already persistent.
+  await page.addInitScript(() => {
+    const w = window as unknown as { persistCalls: number };
+    w.persistCalls = 0;
+    Object.defineProperty(navigator, 'storage', {
+      configurable: true,
+      value: Object.assign(Object.create(navigator.storage), {
+        persisted: async () => localStorage.getItem('vubicle.test.persisted') === '1',
+        persist: async () => (w.persistCalls++, false),
+      }),
+    });
+  });
+  await setUp(page);
+  const calls = () => page.evaluate(() => (window as unknown as { persistCalls: number }).persistCalls);
+  const add = async (name: string) => {
+    await addFiles(page, [{ name, buffer: buf(lecture), mimeType: 'application/pdf' }]);
+    await expect(page.getByRole('list', { name: 'Files in this cubicle' }).getByText(name)).toBeVisible();
+  };
+  await add('one.pdf');
+  await expect.poll(calls).toBe(1);
+  await add('two.pdf');
+  expect(await calls()).toBe(1);
+
+  // A new visit asks again on its first file.
+  await page.reload();
+  expect(await calls()).toBe(0);
+  await add('three.pdf');
+  await expect.poll(calls).toBe(1);
+
+  // Already persistent: nothing to ask.
+  await page.evaluate(() => localStorage.setItem('vubicle.test.persisted', '1'));
+  await page.reload();
+  await add('four.pdf');
+  await page.waitForTimeout(300);
+  expect(await calls()).toBe(0);
 });
 
 for (const path of ['/', '/app/', '/privacy/', '/404.html']) {

@@ -131,7 +131,7 @@ const saveOrExplain = async (...args: Parameters<typeof put>) => {
 export async function addFile(cubicleId: string, f: File) {
   const rec: StoredFile = { id: uid(), cubicleId, name: f.name, kind: 'note', size: f.size, addedAt: Date.now(), status: 'reading', progress: 0 };
   await saveOrExplain('files', rec);
-  askToPersist();
+  void askToPersist();
   try {
     if (f.size > MAX_BYTES) throw new FileError(`"${f.name}" is larger than 60 MB. Split it or export a smaller PDF.`);
     const bytes = new Uint8Array(await f.arrayBuffer());

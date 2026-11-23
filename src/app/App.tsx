@@ -229,7 +229,7 @@ function ImportButton({ inMenu, onDone }: { inMenu?: boolean; onDone?: () => voi
             const f = e.target.files?.[0];
             e.target.value = '';
             if (!f) return;
-            askToPersist();
+            void askToPersist();
             try {
               const c = await importBackup(f);
               writeLocal('vubicle.current', c.id);

@@ -175,23 +175,21 @@ export function db() {
 
 let persistAsked = false;
 /**
- * Asks the browser, once ever, not to clear this site's storage when space runs low. Called on first real use
- * (the first file added or backup imported). Browsers without the API, or that say no, are fine: the backup
- * reminder still covers them. Firefox may show its own permission prompt for this.
+ * Asks the browser not to clear this site's storage when space runs low, at most once per visit, on the first
+ * file added or backup imported. Skipped when storage is already persistent. Asking again on a later visit gives
+ * Chrome another chance, since it can say no at first and yes once the site is used more. Browsers without the
+ * API, or that say no, are fine: the backup reminder still covers them. Firefox may show its own prompt.
  */
-export function askToPersist() {
+export async function askToPersist() {
   if (persistAsked) return;
   persistAsked = true;
   try {
-    if (localStorage.getItem('vubicle.persistAsked')) return;
-    localStorage.setItem('vubicle.persistAsked', '1');
+    const storage = navigator.storage;
+    if (!storage?.persist) return;
+    if (storage.persisted && (await storage.persisted())) return;
+    await storage.persist();
   } catch {
-    /* private mode: ask once per page load instead */
-  }
-  try {
-    navigator.storage?.persist?.().catch(() => {});
-  } catch {
-    /* very old browsers */
+    /* unsupported or refused */
   }
 }
 
