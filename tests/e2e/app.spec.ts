@@ -436,12 +436,25 @@ test('the AI endpoints refuse requests without a valid token, and the page gets 
   const tokenRes = await request.post('/api/token', { headers: origin });
   expect(tokenRes.status()).toBe(200);
   const { token } = await tokenRes.json();
-  // With the token the request gets past the check (an empty passage list is then refused as bad input, or the mock answers).
+  // With the token the request gets past the check. The empty passage list is then refused as bad input before any
+  // AI is called (or, with no keys set, the stand-in answers), so this never spends real quota.
   expect([200, 400]).toContain((await request.post('/api/ai', { headers: { ...origin, 'x-vubicle-token': token }, data: body })).status());
 
-  // The page itself, with nothing mocked, fetches a token and sends it.
+  // The page itself fetches a token from the real /api/token and sends it with every AI and embedding request.
+  // Those requests go to the stand-in AI, so tests never spend real quota even when .env.local holds keys.
+  const issued: string[] = [];
   const sent: (string | null)[] = [];
-  page.on('request', (r) => r.url().endsWith('/api/ai') && sent.push(r.headers()['x-vubicle-token'] ?? null));
+  page.on('response', async (r) => {
+    if (r.url().endsWith('/api/token') && r.ok()) issued.push((await r.json()).token);
+  });
+  await page.route('**/api/ai', async (route) => {
+    sent.push(route.request().headers()['x-vubicle-token'] ?? null);
+    await route.fulfill({ json: { result: mockAi(route.request().postDataJSON()), provider: 'mock' } });
+  });
+  await page.route('**/api/embed', async (route) => {
+    sent.push(route.request().headers()['x-vubicle-token'] ?? null);
+    await route.fulfill({ status: 503, json: { error: 'config' } });
+  });
   await page.goto('/app/');
   await page.getByRole('button', { name: 'I understand' }).click();
   await page.getByRole('button', { name: 'Create a cubicle' }).click();
@@ -452,5 +465,6 @@ test('the AI endpoints refuse requests without a valid token, and the page gets 
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Open source 1' })).toBeVisible();
   await expect.poll(() => sent.length).toBeGreaterThan(0);
-  expect(sent.every((t) => t && t.includes('.'))).toBe(true);
+  await expect.poll(() => issued.length).toBeGreaterThan(0);
+  expect(sent.every((t) => t !== null && issued.includes(t))).toBe(true);
 });

@@ -3,7 +3,7 @@ import { withFailover, BusyError, UnavailableError, backoff } from '../../api/_l
 import { ProviderError, gemini, groq, type Provider } from '../../api/_lib/providers';
 import { take, memoryStore, personKey } from '../../api/_lib/ratelimit';
 import { issueToken, checkToken, tokenSecret, TOKEN_TTL_SEC } from '../../api/_lib/token';
-import { plan, extractJson, BadRequest } from '../../api/_lib/tasks';
+import { plan, extractJson, BadRequest, mixedSplit } from '../../api/_lib/tasks';
 import { handleAi, handleEmbed, handleToken, originAllowed, clientIp } from '../../api/_lib/handler';
 import { config } from '../../api/_lib/config';
 import { GET as status } from '../../api/status';
@@ -277,6 +277,17 @@ describe('rate limit', () => {
 });
 
 describe('tasks', () => {
+  it('splits a Mixed batch into exact counts per level', () => {
+    expect(mixedSplit(10)).toEqual({ easy: 4, medium: 3, hard: 3 });
+    expect(mixedSplit(5)).toEqual({ easy: 2, medium: 2, hard: 1 });
+    expect(mixedSplit(15)).toEqual({ easy: 5, medium: 5, hard: 5 });
+    expect(mixedSplit(20)).toEqual({ easy: 7, medium: 7, hard: 6 });
+    expect(mixedSplit(1)).toEqual({ easy: 1, medium: 0, hard: 0 });
+    const passages = [{ label: 'Lecture.pdf, p. 1', text: 'Kepler showed that orbits are ellipses.' }];
+    expect(plan('flashcards', { passages, count: 5 }).prompt(40_000).system).toContain('write exactly 2 easy, 2 medium and 1 hard cards');
+    expect(plan('flashcards', { passages, count: 1 }).prompt(40_000).system).toContain('write exactly 1 easy card.');
+  });
+
   it('accepts only easy, medium, hard or mixed flashcards, and labels every card', () => {
     const passages = [{ label: 'Lecture.pdf, p. 1', text: 'Kepler showed that orbits are ellipses.' }];
     for (const difficulty of ['impossible', 'EASY', 3, '', null, ['hard']]) expect(() => plan('flashcards', { passages, difficulty }), String(difficulty)).toThrow(BadRequest);
@@ -287,7 +298,7 @@ describe('tasks', () => {
     expect((hard.parse(out) as any).cards.map((c: any) => c.difficulty)).toEqual(['hard', 'hard']);
     // Mixed: the model's label when it is a real level, none otherwise. A request without one means mixed.
     const mixed = plan('flashcards', { passages });
-    expect(mixed.prompt(40_000).system).toContain('about a third of the cards at each level');
+    expect(mixed.prompt(40_000).system).toContain('write exactly 4 easy, 3 medium and 3 hard cards');
     expect((mixed.parse(out) as any).cards.map((c: any) => c.difficulty)).toEqual(['easy', null]);
   });
 

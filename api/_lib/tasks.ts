@@ -87,6 +87,17 @@ export type Difficulty = (typeof DIFFICULTIES)[number];
 type CardLevel = Exclude<Difficulty, 'mixed'>;
 const CARD_LEVELS: CardLevel[] = ['easy', 'medium', 'hard'];
 
+/**
+ * How many cards of each level a Mixed batch asks for: a third each, with the leftover going to easy first,
+ * then medium. 10 cards: 4 easy, 3 medium, 3 hard. 5 cards: 2, 2, 1. Asking for numbers, not "about a
+ * third", because the model leaned easy (14 easy, 7 medium, 5 hard in a test of 26 cards).
+ */
+export function mixedSplit(count: number): Record<CardLevel, number> {
+  const base = Math.floor(count / 3);
+  const extra = count % 3;
+  return { easy: base + (extra > 0 ? 1 : 0), medium: base + (extra > 1 ? 1 : 0), hard: base };
+}
+
 const LEVEL_RULES: Record<CardLevel, string> = {
   easy: 'Easy: recall of a single fact, term or definition that the passages state directly.',
   medium: 'Medium: explain a concept in your own words, or connect two related ideas from the passages.',
@@ -211,9 +222,10 @@ ${JSON_ONLY} Shape: {"message": "...", "verdict": "correct" | "partial" | "incor
       const level = body.difficulty === undefined ? 'mixed' : body.difficulty;
       if (!DIFFICULTIES.includes(level)) throw new BadRequest('difficulty must be easy, medium, hard or mixed');
       const avoid = (Array.isArray(body.avoid) ? body.avoid : []).slice(0, 40).map((s: unknown, i: number) => str(s, `avoid[${i}]`, 200));
+      const split = mixedSplit(count);
       const levels =
         level === 'mixed'
-          ? `Mix the difficulty: about a third of the cards at each level.\n${CARD_LEVELS.map((l) => `- ${LEVEL_RULES[l]}`).join('\n')}\nSet "difficulty" on each card to the level it is.`
+          ? `Mix the difficulty: write exactly ${CARD_LEVELS.filter((l) => split[l]).map((l) => `${split[l]} ${l}`).join(', ').replace(/, ([^,]*)$/, ' and $1')} card${count === 1 ? '' : 's'}.\n${CARD_LEVELS.map((l) => `- ${LEVEL_RULES[l]}`).join('\n')}\nSet "difficulty" on each card to the level it is.`
           : `Every card is at this level. ${LEVEL_RULES[level as CardLevel]}\nSet "difficulty" to "${level}" on every card.`;
       return {
         prompt: (ctx) => ({
