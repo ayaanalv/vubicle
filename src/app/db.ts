@@ -173,6 +173,28 @@ export function db() {
   return dbp;
 }
 
+let persistAsked = false;
+/**
+ * Asks the browser, once ever, not to clear this site's storage when space runs low. Called on first real use
+ * (the first file added or backup imported). Browsers without the API, or that say no, are fine: the backup
+ * reminder still covers them. Firefox may show its own permission prompt for this.
+ */
+export function askToPersist() {
+  if (persistAsked) return;
+  persistAsked = true;
+  try {
+    if (localStorage.getItem('vubicle.persistAsked')) return;
+    localStorage.setItem('vubicle.persistAsked', '1');
+  } catch {
+    /* private mode: ask once per page load instead */
+  }
+  try {
+    navigator.storage?.persist?.().catch(() => {});
+  } catch {
+    /* very old browsers */
+  }
+}
+
 export const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 
 // ---- change notifications: components re-read when a store they use changes ----

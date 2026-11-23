@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { MessagesSquare, GraduationCap, Layers, FileText, ListChecks, Network, CalendarDays, FolderOpen, MoreHorizontal, Plus, Download, Upload, Trash2, Sun, Moon, Monitor, ShieldCheck, Pencil, Home } from 'lucide-react';
-import { byCubicle, cubicles, db, put, uid, useLive, type Cubicle } from './db';
+import { askToPersist, byCubicle, cubicles, db, put, uid, useLive, type Cubicle } from './db';
 import { Dialog, LineBadge, Menu } from './ui';
 import { Files } from './Files';
 import { ChatTool } from './Chat';
@@ -12,7 +12,7 @@ import { Briefs } from './Briefs';
 import { Viewer } from './Viewer';
 import { Timer } from './Timer';
 import { PrivacyGate, PrivacyText } from './Privacy';
-import { exportCubicle, importBackup, openSample, DeleteCubicle } from './Backup';
+import { exportCubicle, importBackup, openSample, DeleteCubicle, LastBackup, BackupReminder } from './Backup';
 import { SAMPLES } from './samples';
 import { embedPending, storageErrorMessage } from './ingest';
 
@@ -229,6 +229,7 @@ function ImportButton({ inMenu, onDone }: { inMenu?: boolean; onDone?: () => voi
             const f = e.target.files?.[0];
             e.target.value = '';
             if (!f) return;
+            askToPersist();
             try {
               const c = await importBackup(f);
               writeLocal('vubicle.current', c.id);
@@ -388,6 +389,7 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
                 <button role="menuitem" onClick={() => (close(), exportCubicle(cubicle).catch((e) => window.alert(e.message || 'The backup could not be made. Nothing was saved.')))}>
                   <Download aria-hidden="true" /> Export a backup
                 </button>
+                <LastBackup cubicleId={cubicle.id} />
                 <ImportButton inMenu onDone={close} />
                 <hr />
                 <button role="menuitem" onClick={() => (close(), setTheme('light'))}>
@@ -421,6 +423,7 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
           </aside>
 
           <main className="main">
+            <BackupReminder cubicle={cubicle} fileNames={files?.map((f) => f.name) ?? []} />
             <div className="tools" role="tablist" aria-label="Study tools">
               <button role="tab" className="tab tool-only-phone" aria-selected={filesOpen} onClick={() => setFilesOpen(true)}>
                 <FolderOpen aria-hidden="true" /> Files

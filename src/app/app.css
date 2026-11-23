@@ -688,6 +688,30 @@ dialog::backdrop {
 .menu .danger {
   color: var(--bad);
 }
+/* "Last backed up" under the export item, lined up with the item's text */
+.menu .menu-note {
+  margin: -6px 0 4px;
+  padding: 0 10px 0 37px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* backup reminder, above the tool tabs */
+.backup-reminder {
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 10px 16px 0;
+}
+.backup-reminder > div {
+  flex: 1 1 220px;
+}
+.backup-reminder p {
+  margin: 0;
+}
+.backup-reminder .bad {
+  color: var(--bad);
+  margin-top: 4px;
+}
 .menu .danger svg {
   color: var(--bad);
 }

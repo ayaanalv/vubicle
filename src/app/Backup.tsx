@@ -1,9 +1,10 @@
 // Backups: one .vubicle file (a zip) holds a cubicle's records and its original files.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { zipSync, strToU8 } from 'fflate';
-import { Download, Trash2 } from 'lucide-react';
+import { Download, HardDriveDownload, Trash2, X } from 'lucide-react';
 import { byCubicle, changed, cubicles, db, deleteCubicle, uid, PER_CUBICLE, type Cubicle } from './db';
-import type { Sample } from './samples';
+import { SAMPLES, type Sample } from './samples';
+import { daysBetween, hasOwnFiles, lastBackupText, shouldRemind } from '../lib/reminder';
 import { Dialog } from './ui';
 import { FORMAT, VERSION, readBackupZip, readManifest, buildImport, fitsInBackup, BackupError, TOO_BIG_TO_EXPORT } from '../lib/backup';
 
@@ -24,6 +25,87 @@ export async function exportCubicle(c: Cubicle) {
   a.download = `${c.name.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '') || 'cubicle'}-${new Date().toISOString().slice(0, 10)}.vubicle`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  markBackedUp(c.id);
+}
+
+// ---- when each cubicle was last backed up, kept in this browser's localStorage ----
+
+const BACKED_UP = (id: string) => `vubicle.backup.${id}`;
+const DISMISSED = (id: string) => `vubicle.backupDismissed.${id}`;
+const EVENT = 'vubicle:backup';
+
+function readTime(key: string): number | null {
+  try {
+    const v = Number(localStorage.getItem(key));
+    return v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeTime(key: string, t: number) {
+  try {
+    localStorage.setItem(key, String(t));
+  } catch {
+    /* private mode: the line just keeps saying what it said */
+  }
+  window.dispatchEvent(new Event(EVENT));
+}
+
+export const markBackedUp = (id: string) => writeTime(BACKED_UP(id), Date.now());
+const dismissReminder = (id: string) => writeTime(DISMISSED(id), Date.now());
+
+/** The cubicle's last backup and reminder dismissal, re-read whenever either changes. */
+function useBackupTimes(id: string) {
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const on = () => bump((n) => n + 1);
+    window.addEventListener(EVENT, on);
+    window.addEventListener('storage', on);
+    return () => {
+      window.removeEventListener(EVENT, on);
+      window.removeEventListener('storage', on);
+    };
+  }, []);
+  return { last: readTime(BACKED_UP(id)), dismissedAt: readTime(DISMISSED(id)) };
+}
+
+/** The small "Last backed up" line under the export menu item. */
+export function LastBackup({ cubicleId }: { cubicleId: string }) {
+  const { last } = useBackupTimes(cubicleId);
+  return <p className="menu-note">{lastBackupText(last, Date.now())}</p>;
+}
+
+/** A gentle note when a cubicle with the student's own files has gone a week without a backup. */
+export function BackupReminder({ cubicle, fileNames }: { cubicle: Cubicle; fileNames: string[] }) {
+  const { last, dismissedAt } = useBackupTimes(cubicle.id);
+  const [error, setError] = useState('');
+  const now = Date.now();
+  const sample = SAMPLES.find((s) => s.name === cubicle.name);
+  if (!shouldRemind({ last, createdAt: cubicle.createdAt, dismissedAt, hasData: hasOwnFiles(fileNames, sample?.file), now })) return null;
+  return (
+    <div className="notice backup-reminder" role="status">
+      <HardDriveDownload aria-hidden="true" />
+      <div>
+        <p>
+          {last == null ? `${cubicle.name} has never been backed up.` : `${cubicle.name} was last backed up ${daysBetween(last, now)} days ago.`} Your work is stored only in this browser, so keep a
+          backup file somewhere safe.
+        </p>
+        {error && <p className="bad">{error}</p>}
+      </div>
+      <button
+        className="btn sm"
+        onClick={() => {
+          setError('');
+          exportCubicle(cubicle).catch((e) => setError(e instanceof BackupError ? e.message : 'The backup could not be made. Nothing was saved.'));
+        }}
+      >
+        <Download aria-hidden="true" /> Export a backup
+      </button>
+      <button className="btn ghost icon sm" aria-label="Dismiss backup reminder" onClick={() => dismissReminder(cubicle.id)}>
+        <X aria-hidden="true" />
+      </button>
+    </div>
+  );
 }
 
 /** Imports a backup as a new cubicle. Every id is replaced, so importing twice never collides. */

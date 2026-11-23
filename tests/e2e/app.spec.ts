@@ -372,6 +372,52 @@ test('deleting offers a backup first, and a backup restores the cubicle', async 
   await expect(page.getByRole('list', { name: 'Files in this cubicle' }).getByText('lecture4.pdf')).toBeVisible();
 });
 
+test('the menu shows the last backup, and a week without one brings a reminder', async ({ page }) => {
+  await setUp(page);
+  const menu = page.getByRole('button', { name: 'Cubicle and app settings' });
+  const reminder = page.getByRole('status').filter({ hasText: 'Your work is stored only in this browser' });
+  await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
+  await expect(page.getByText('2 pages', { exact: false })).toBeVisible();
+  // Asked the browser to keep storage once, on the first file.
+  expect(await page.evaluate(() => localStorage.getItem('vubicle.persistAsked'))).toBe('1');
+
+  await menu.click();
+  await expect(page.getByText('Never backed up')).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: 'Export a backup' }).click();
+  await download;
+  await menu.click();
+  await expect(page.getByText('Last backed up today')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(reminder).toHaveCount(0);
+
+  // Clearing the stored date brings back "Never backed up".
+  const key = await page.evaluate(() => `vubicle.backup.${localStorage.getItem('vubicle.current')}`);
+  await page.evaluate((k) => localStorage.removeItem(k), key);
+  await page.reload();
+  await menu.click();
+  await expect(page.getByText('Never backed up')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Nine days since the last backup: the reminder shows, exporting from it clears it.
+  await page.evaluate((k) => localStorage.setItem(k, String(Date.now() - 9 * 86_400_000)), key);
+  await page.reload();
+  await expect(reminder).toContainText('PHYS 1080 was last backed up 9 days ago.');
+  const again = page.waitForEvent('download');
+  await reminder.getByRole('button', { name: 'Export a backup' }).click();
+  await again;
+  await expect(reminder).toHaveCount(0);
+
+  // Dismissing it keeps it away after a reload.
+  await page.evaluate((k) => localStorage.setItem(k, String(Date.now() - 9 * 86_400_000)), key);
+  await page.reload();
+  await page.getByRole('button', { name: 'Dismiss backup reminder' }).click();
+  await expect(reminder).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('tab', { name: 'Chat' })).toBeVisible();
+  await expect(reminder).toHaveCount(0);
+});
+
 for (const path of ['/', '/app/', '/privacy/', '/404.html']) {
   test(`no horizontal scrolling on ${path} @phone`, async ({ page }) => {
     await mockApi(page);

@@ -3,7 +3,7 @@
 import './polyfills';
 import { detectKind, parsePptx, parseDocx, parseNote, parsePdf, FileError, type Parsed } from '../lib/parse';
 import { chunkSections } from '../lib/chunk';
-import { db, put, uid, changed, type StoredFile } from './db';
+import { askToPersist, db, put, uid, changed, type StoredFile } from './db';
 import { ai, embed, whenIdle, AiError } from './api';
 
 /** Pause between embedding batches. A 200-page course is about ten batches, so indexing takes a minute or two. */
@@ -131,8 +131,7 @@ const saveOrExplain = async (...args: Parameters<typeof put>) => {
 export async function addFile(cubicleId: string, f: File) {
   const rec: StoredFile = { id: uid(), cubicleId, name: f.name, kind: 'note', size: f.size, addedAt: Date.now(), status: 'reading', progress: 0 };
   await saveOrExplain('files', rec);
-  // Ask the browser not to evict this site's storage under pressure. It may say no; that is fine.
-  navigator.storage?.persist?.().catch(() => {});
+  askToPersist();
   try {
     if (f.size > MAX_BYTES) throw new FileError(`"${f.name}" is larger than 60 MB. Split it or export a smaller PDF.`);
     const bytes = new Uint8Array(await f.arrayBuffer());
