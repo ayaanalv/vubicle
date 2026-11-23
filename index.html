@@ -12,8 +12,6 @@
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="preload" as="image" type="image/avif" href="/art/hero-1280.avif"
-      imagesrcset="/art/hero-640.avif 640w, /art/hero-1280.avif 1280w, /art/hero-2000.avif 2000w" imagesizes="100vw" />
     <!-- Link previews need full URLs; a relative og:image shows no picture on most networks. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Vubicle" />
@@ -41,31 +39,20 @@
 
     <main id="main">
       <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-art">
-          <picture>
-            <source type="image/avif" srcset="/art/hero-640.avif 640w, /art/hero-1280.avif 1280w, /art/hero-2000.avif 2000w" sizes="100vw" />
-            <img
-              src="/art/hero-1280.webp"
-              srcset="/art/hero-640.webp 640w, /art/hero-1280.webp 1280w, /art/hero-2000.webp 2000w"
-              sizes="100vw"
-              width="2000"
-              height="1116"
-              fetchpriority="high"
-              alt="A tired office worker, seen from behind, stares at a hole broken through his cubicle wall. A violet galaxy pours through it, carrying pencils, compasses, element tiles and the symbols pi and sigma."
-            />
-          </picture>
-          <canvas class="rift" aria-hidden="true"></canvas>
-        </div>
         <div class="hero-text">
-          <div class="hero-side">
-            <p class="standfirst">
-              Break through the routine. Drop in your slides, readings and notes, then study with AI that answers only from
-              them and shows you the page.
-            </p>
-            <a class="button" href="/app/">Launch workspace <span aria-hidden="true">→</span></a>
-            <p class="fineprint">Free. No account. Your files stay in your browser.</p>
+          <h1 id="hero-title">Ask your course files. Every answer cites the page.</h1>
+          <p class="standfirst">
+            Vubicle turns your slides, readings and notes into cited answers, flashcards and quizzes. Free, no account, and your
+            files stay in your browser.
+          </p>
+          <div class="hero-actions">
+            <a class="button" href="/app/?sample=physics">Try a sample <span aria-hidden="true">→</span></a>
+            <a class="button button-ghost" href="/app/">Launch workspace</a>
           </div>
-          <h1 id="hero-title">Virtual cubicle.<br />Boundless mind.</h1>
+        </div>
+        <!-- Real answers from a sample course, drawn by src/landing/hero-chat.tsx. -->
+        <div class="hero-demo" id="hero-chat" role="region" aria-label="Example: answers from a sample course, with the page each one cites">
+          <p class="hc-note">Loading the sample…</p>
         </div>
       </section>
 
@@ -128,13 +115,14 @@
       <section id="tools" class="tools" aria-labelledby="tools-title">
         <h2 id="tools-title">One desk,<br />every tool</h2>
         <dl class="tool-list">
-          <div><dt>Chat with citations</dt><dd>Ask anything about the course. Each answer links to the passage it came from, and you can open it in place.</dd></div>
-          <div><dt>Flashcards</dt><dd>Made from your material or written by you, then scheduled to come back right before you would forget them.</dd></div>
-          <div><dt>Practice quizzes</dt><dd>Multiple choice and short answer, with instant feedback, partial credit and a link to the source. Saved for retakes.</dd></div>
-          <div><dt>Tutor mode</dt><dd>The tutor asks one question at a time, checks your answer against the notes and gives hints before answers.</dd></div>
-          <div><dt>Concept map</dt><dd>See how the topics in a course connect. Pick one to read its passages or turn it into cards.</dd></div>
-          <div><dt>Deadlines</dt><dd>Pulls exam and assignment dates and weights out of the syllabus into a list you can edit and add to your calendar.</dd></div>
-          <div><dt>Focus timer</dt><dd>A Pomodoro timer that sits on the desk while you work.</dd></div>
+          <div><dt><svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square" aria-hidden="true"><path d="M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path><path d="M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1"></path></svg>Chat with citations</dt><dd>Ask anything about the course. Each answer links to the passage it came from, and you can open it in place.</dd></div>
+          <div><dt><svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layers lucide-layers-3" aria-hidden="true"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"></path><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"></path><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"></path></svg>Flashcards</dt><dd>Made from your material at the difficulty you pick, or written by you, then scheduled to come back right before you would forget them.</dd></div>
+          <div><dt><svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-checks" aria-hidden="true"><path d="M13 5h8"></path><path d="M13 12h8"></path><path d="M13 19h8"></path><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path></svg>Practice quizzes</dt><dd>Multiple choice and short answer, with instant feedback, partial credit and a link to the source. Saved for retakes.</dd></div>
+          <div><dt><svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path></svg>Tutor mode</dt><dd>The tutor asks one question at a time, checks your answer against the notes and gives hints before answers.</dd></div>
+          <div><dt><svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-network" aria-hidden="true"><rect x="16" y="16" width="6" height="6" rx="1"></rect><rect x="2" y="16" width="6" height="6" rx="1"></rect><rect x="9" y="2" width="6" height="6" rx="1"></rect><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"></path><path d="M12 12V8"></path></svg>Concept map</dt><dd>See how the topics in a course connect. Pick one to read its passages or turn it into cards.</dd></div>
+          <div><dt><svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>Briefs</dt><dd>A summary, study guide or list of key terms for each file you pick, with every point cited to its page.</dd></div>
+          <div><dt><svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar-days" aria-hidden="true"><path d="M8 2v3"></path><path d="M16 2v3"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18"></path><path d="M8 13h.01"></path><path d="M12 13h.01"></path><path d="M16 13h.01"></path><path d="M8 17h.01"></path><path d="M12 17h.01"></path><path d="M16 17h.01"></path></svg>Deadlines</dt><dd>Pulls exam and assignment dates and weights out of the syllabus into a list you can edit and add to your calendar.</dd></div>
+          <div><dt><svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-timer" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2"></line><line x1="12" x2="15" y1="14" y2="11"></line><circle cx="12" cy="14" r="8"></circle></svg>Focus timer</dt><dd>A Pomodoro timer that sits on the desk while you work.</dd></div>
         </dl>
       </section>
 
@@ -167,42 +155,33 @@
       </section>
 
       <section class="portals" aria-labelledby="portals-title">
-        <h2 id="portals-title" class="portals-title">Start with a subject</h2>
+        <h2 id="portals-title" class="portals-title">Try a sample course</h2>
         <ul class="portal-strip">
           <li>
-            <a href="/app/?subject=stem">
-              <picture>
-                <source type="image/avif" srcset="/art/stem-640.avif 640w, /art/stem-1280.avif 1280w" sizes="(max-width: 700px) 100vw, 34vw" />
-                <img src="/art/stem-640.webp" srcset="/art/stem-640.webp 640w, /art/stem-1280.webp 1280w" sizes="(max-width: 700px) 100vw, 34vw" width="1280" height="714" loading="lazy" alt="Chalk equations on a blackboard dissolve into planets circling a sun." />
-              </picture>
-              <span class="portal-name">STEM and physics <span aria-hidden="true">→</span></span>
+            <a href="/app/?sample=physics">
+              <span class="portal-name">STEM &amp; Physics <span aria-hidden="true">→</span></span>
+              <span class="portal-desc">Kepler's laws of planetary motion, from Wikipedia.</span>
             </a>
           </li>
           <li>
-            <a href="/app/?subject=chemistry">
-              <picture>
-                <source type="image/avif" srcset="/art/chem-640.avif 640w, /art/chem-1280.avif 1280w" sizes="(max-width: 700px) 100vw, 34vw" />
-                <img src="/art/chem-640.webp" srcset="/art/chem-640.webp 640w, /art/chem-1280.webp 1280w" sizes="(max-width: 700px) 100vw, 34vw" width="1280" height="714" loading="lazy" alt="Glowing crystal lattices float above glass flasks in a dark lab." />
-              </picture>
-              <span class="portal-name">Molecular chemistry <span aria-hidden="true">→</span></span>
+            <a href="/app/?sample=chemistry">
+              <span class="portal-name">Molecular Chemistry <span aria-hidden="true">→</span></span>
+              <span class="portal-desc">VSEPR theory and the shapes of molecules, from Wikipedia.</span>
             </a>
           </li>
           <li>
-            <a href="/app/?subject=humanities">
-              <picture>
-                <source type="image/avif" srcset="/art/humanities-640.avif 640w, /art/humanities-1280.avif 1280w" sizes="(max-width: 700px) 100vw, 34vw" />
-                <img src="/art/humanities-640.webp" srcset="/art/humanities-640.webp 640w, /art/humanities-1280.webp 1280w" sizes="(max-width: 700px) 100vw, 34vw" width="1280" height="714" loading="lazy" alt="An open book releases parchment pages that drift across a starry sky." />
-              </picture>
-              <span class="portal-name">Literature and humanities <span aria-hidden="true">→</span></span>
+            <a href="/app/?sample=literature">
+              <span class="portal-name">Literature <span aria-hidden="true">→</span></span>
+              <span class="portal-desc">Edgar Allan Poe's "The Tell-Tale Heart".</span>
             </a>
           </li>
         </ul>
         <div class="portal-band">
           <p class="closing">
-            Your course is waiting on the other side of the wall.
+            Any subject works.
             <a href="/app/">Open your first cubicle</a> and add a lecture.
           </p>
-          <p class="closing-note">Any subject works. These three just come with their own art.</p>
+          <p class="closing-note">Each sample opens with flashcards, a quiz, a concept map and cited answers already made.</p>
         </div>
       </section>
     </main>
@@ -216,7 +195,7 @@
       <a class="foot-line" href="/app/">Open the workspace <span aria-hidden="true">→</span></a>
       <div class="foot-meta">
         <span><a href="/privacy/">Privacy</a></span>
-        <span>Illustrations made with Google Gemini</span>
+        <span>Samples: Wikipedia (CC BY-SA 4.0) and Poe (public domain)</span>
         <span>Guelph, 2026</span>
       </div>
     </footer>

@@ -45,8 +45,27 @@ async function addFiles(page: Page, files: { name: string; buffer: Buffer; mimeT
 const buf = (u: Uint8Array) => Buffer.from(u);
 
 test('landing page leads into the app and states the privacy terms', async ({ page }) => {
+  const api: string[] = [];
+  page.on('request', (r) => r.url().includes('/api/') && api.push(r.url()));
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Virtual cubicle\.\s*Boundless mind\./);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ask your course files. Every answer cites the page.');
+  await expect(page.getByRole('link', { name: /Try a sample/ })).toHaveAttribute('href', '/app/?sample=physics');
+
+  // The hero shows a real sample answer; a citation shows the page it came from.
+  const demo = page.getByRole('region', { name: /answers from a sample course/ });
+  const cited = demo.getByRole('complementary', { name: 'Cited page' });
+  await expect(cited.getByText('Keplers-laws-excerpt.pdf')).toBeVisible();
+  await expect(cited.locator('.hc-passage.hit')).toHaveCount(1);
+  await demo.getByRole('button', { name: /How did Kepler's model/ }).click();
+  await expect(demo.getByRole('button', { name: /How did Kepler's model/ })).toHaveAttribute('aria-pressed', 'true');
+  const before = await cited.locator('.hc-passage.hit').textContent();
+  const chips = demo.locator('.source');
+  await chips.last().click();
+  await expect(chips.last()).toHaveAttribute('aria-pressed', 'true');
+  if ((await chips.count()) > 1) await expect(cited.locator('.hc-passage.hit')).not.toHaveText(before!);
+  await demo.getByRole('button', { name: 'Literature' }).click();
+  await expect(cited.getByText('The-Tell-Tale-Heart.pdf')).toBeVisible();
+
   await expect(page.getByText(/sent to Google Gemini, or to Groq/)).toBeVisible();
   await expect(page.getByText(/do not upload anything confidential/i)).toBeVisible();
   // The live search demo finds the cited slide, and says so when the lecture does not cover a question.
@@ -57,6 +76,8 @@ test('landing page leads into the app and states the privacy terms', async ({ pa
   await expect(page.getByText('The sample lecture does not cover that.', { exact: false })).toBeVisible();
   await page.getByRole('link', { name: /Launch workspace/ }).first().click();
   await expect(page).toHaveURL(/\/app\/$/);
+  // The landing page itself never calls the API: the hero reads the sample file.
+  expect(api).toEqual([]);
 });
 
 test('the privacy page and the 404 page are reachable and lead back in', async ({ page }) => {
@@ -71,12 +92,12 @@ test('the privacy page and the 404 page are reachable and lead back in', async (
   await expect(page).toHaveURL(/\/app\/$/);
 });
 
-test('subject portal starts a cubicle for that subject', async ({ page }) => {
+test('a sample card on the landing page opens that sample', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
-  await page.getByRole('link', { name: /Molecular chemistry/ }).click();
+  await page.getByRole('link', { name: /Molecular Chemistry/ }).click();
   await page.getByRole('button', { name: 'I understand' }).click();
-  await expect(page.getByLabel('Course name')).toHaveValue('Molecular chemistry');
+  await expect(page.getByLabel('Cubicle', { exact: true }).locator('option:checked')).toHaveText(SAMPLES[1].name);
 });
 
 test('files are read in the browser, with clear errors for unsupported ones', async ({ page }) => {

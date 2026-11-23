@@ -1,5 +1,5 @@
 :root {
-  /* Taken from the hero art: night sky, starlight paper, drywall gray, rift gold and violet. */
+  /* Night sky, starlight paper, drywall gray, gold and violet. */
   --night: #0e0c1d;
   --night-2: #17142c;
   --paper: #f1eff5;
@@ -108,7 +108,6 @@ input {
 .proof,
 .tools,
 .faq,
-.hero-text,
 .foot {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -187,68 +186,226 @@ input {
   padding: 0 22px;
 }
 
-/* Hero: the art as a masthead band, the title below it on the axis. */
+/* Hero: the promise on the left; a real sample answer and the page it cites on the right. */
 .hero {
-  position: relative;
-}
-.hero-art {
-  position: relative;
-  height: min(62svh, 56vw);
-  min-height: 340px;
-  overflow: hidden;
-  background: #2a2733;
-}
-.hero-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 58%;
-}
-.hero-art::before {
-  /* Neutral scrim so the bar reads over the ceiling. */
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 140px;
-  z-index: 1;
-  background: linear-gradient(rgb(14 12 29 / 0.7), rgb(14 12 29 / 0)); /* taste-skill-ignore: neutral scrim over the art */
-  pointer-events: none;
-}
-.rift {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  column-gap: clamp(32px, 4vw, 72px);
+  align-items: center;
+  min-height: min(100svh, 980px);
+  padding: clamp(104px, 9vw, 136px) var(--margin) clamp(48px, 6vw, 88px);
 }
 .hero-text {
-  align-items: end;
-  padding-top: clamp(28px, 3.4vw, 48px);
-  padding-bottom: clamp(40px, 5vw, 72px);
+  display: grid;
+  gap: 24px;
+  justify-items: start;
 }
 .hero h1 {
-  grid-column: 6 / -1;
-  grid-row: 1;
-  font-size: var(--s-xl);
-  line-height: 0.92;
-  letter-spacing: -0.035em;
-}
-.hero-side {
-  grid-column: 1 / 6;
-  grid-row: 1;
-  display: grid;
-  gap: 22px;
-  justify-items: start;
-  padding-bottom: 6px;
+  font-size: var(--s-l);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  max-width: 13ch;
 }
 .standfirst {
-  max-width: 38ch;
+  max-width: 40ch;
   font-size: 20px;
   line-height: 1.5;
 }
-.fineprint {
-  font-size: var(--s-small);
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.button-ghost {
+  background: transparent;
+  color: var(--paper);
+  box-shadow: inset 0 0 0 2px var(--paper-muted);
+}
+.button-ghost:hover {
+  background: var(--night-2);
+}
+
+/* The hero's sample answer (src/landing/hero-chat.tsx): a light card, the cited page beside the answer. */
+.hero-demo {
+  min-width: 0;
+}
+.hc {
+  display: grid;
+  gap: 14px;
+}
+.hc-note {
   color: var(--paper-muted);
+}
+.hc-samples,
+.hc-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hc-samples button,
+.hc-questions button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font: 600 var(--s-small) / 1.3 var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.hc-samples button {
+  border: 1px solid var(--paper-muted);
+  background: transparent;
+  color: var(--paper);
+}
+.hc-samples button[aria-pressed='true'] {
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+}
+.hc-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+}
+.hc-chat,
+.hc-page {
+  max-height: min(62svh, 560px);
+  overflow: auto;
+  padding: 20px;
+}
+.hc-chat {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+.hc-questions button {
+  border: 1px solid var(--wall);
+  background: transparent;
+  color: var(--ink);
+}
+.hc-questions button[aria-pressed='true'] {
+  border-color: var(--violet);
+  background: var(--violet);
+  color: #fff;
+}
+.hc-answer {
+  display: grid;
+  gap: 10px;
+}
+.hc-who {
+  font-size: var(--s-small);
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.hc-page {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  background: var(--wall-2);
+  border-left: 1px solid var(--wall);
+}
+.hc-file {
+  /* Stays in view while the panel scrolls to the cited passage. */
+  position: sticky;
+  top: -20px;
+  z-index: 1;
+  margin: -20px -20px 0;
+  padding: 20px 20px 8px;
+  background: var(--wall-2);
+  font-weight: 600;
+}
+.hc-file span {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+.hc-passage {
+  font-size: var(--s-small);
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+.hc-passage.hit {
+  padding: 10px 12px;
+  border-left: 3px solid var(--violet);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
+  color: var(--ink);
+}
+/* The answer text, drawn by the workspace's renderer (src/app/rich.tsx). */
+.hc .rich {
+  display: grid;
+  gap: 10px;
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.hc .rich ul,
+.hc .rich ol {
+  display: grid;
+  gap: 4px;
+  padding-left: 22px;
+}
+.hc .rich-h {
+  font-weight: 700;
+}
+.hc .code-inline {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--wall-2);
+  font-size: 0.9em;
+}
+.hc .cite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  margin: 0 1px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--violet) 14%, transparent);
+  color: var(--violet);
+  font: 700 12px / 1 var(--text);
+  vertical-align: 2px;
+  cursor: pointer;
+}
+.hc .cite:hover {
+  background: var(--violet);
+  color: #fff;
+}
+.hc .sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hc .source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--wall);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: 400 13px / 1.2 var(--text);
+  cursor: pointer;
+}
+.hc .source b {
+  color: var(--violet);
+}
+.hc .source span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hc .source[aria-pressed='true'] {
+  border-color: var(--violet);
+  background: color-mix(in srgb, var(--violet) 10%, transparent);
 }
 
 /* How it works: on the gray of the cubicle wall. */
@@ -475,6 +632,13 @@ input {
   margin-bottom: 10px;
   color: var(--gold);
 }
+/* One Lucide icon per tool, the same icons as the workspace tabs. */
+.tool-icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 14px;
+  color: var(--paper);
+}
 .tool-list dd {
   max-width: 38ch;
 }
@@ -523,42 +687,41 @@ input {
   list-style: none;
 }
 .portal-strip a {
-  position: relative;
-  display: block;
-  height: 46svh;
-  min-height: 300px;
-  overflow: hidden;
+  display: grid;
+  gap: 10px;
+  align-content: end;
+  min-height: 220px;
+  padding: 28px var(--margin);
+  border-right: 1px solid var(--wall);
+  background: var(--wall-2);
+  color: var(--ink);
   text-decoration: none;
 }
-.portal-strip img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 1.2s var(--ease-out);
+.portal-strip li:last-child a {
+  border-right: 0;
 }
-.portal-strip a:hover img,
-.portal-strip a:focus-visible img {
-  transform: scale(1.05);
+.portal-strip a:hover {
+  background: var(--paper);
 }
 .portal-strip a:focus-visible {
   outline-offset: -6px;
 }
 .portal-name {
-  position: absolute;
-  inset: auto 0 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px var(--margin);
-  background: var(--paper);
-  color: var(--ink);
-  font: 600 20px/1.2 var(--display);
+  font: 600 var(--s-m) / 1.1 var(--display);
+  letter-spacing: -0.02em;
 }
 .portal-name span {
   transition: transform 0.35s var(--ease-out);
 }
 .portal-strip a:hover .portal-name span {
   transform: translateX(6px);
+}
+.portal-desc {
+  max-width: 34ch;
+  color: var(--ink-muted);
 }
 .portal-band {
   display: grid;
@@ -724,26 +887,30 @@ input {
   .bar nav {
     display: none;
   }
-  .hero-art {
-    height: 56svh;
-  }
-  .hero-art img {
-    object-position: 36% 60%;
-  }
-  .hero h1,
-  .hero-side {
-    grid-column: 1 / -1;
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 40px;
+    min-height: 0;
+    padding-top: 96px;
   }
   .hero h1 {
-    grid-row: 1;
-    font-size: clamp(44px, 12vw, 88px);
-  }
-  .hero-side {
-    grid-row: 2;
-    margin-top: 24px;
+    font-size: clamp(40px, 9vw, 64px);
   }
   .standfirst {
     font-size: 18px;
+  }
+  .hc-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hc-chat {
+    max-height: none;
+  }
+  .hc-page {
+    max-height: 340px;
+  }
+  .hc-page {
+    border-left: 0;
+    border-top: 1px solid var(--wall);
   }
   .how-head h2,
   .how-head p,
@@ -812,13 +979,10 @@ input {
     grid-column: 1 / -1;
   }
   .portal-strip a {
-    height: auto;
     min-height: 0;
-    aspect-ratio: 4 / 3;
-  }
-  .portal-name {
-    font-size: 16px;
-    padding: 12px 16px;
+    padding: 24px var(--margin);
+    border-right: 0;
+    border-bottom: 1px solid var(--wall);
   }
   .foot-top p:nth-child(1),
   .foot-top p:nth-child(2),

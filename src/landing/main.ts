@@ -3,14 +3,13 @@ import '@fontsource-variable/figtree';
 import './landing.css';
 import { initDemo } from './demo';
 import { drawMany } from './many';
-import { startRift } from './rift';
 import { analytics } from '../analytics';
 
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const canvas = document.querySelector<HTMLCanvasElement>('.rift');
-const art = document.querySelector<HTMLImageElement>('.hero-art img');
-if (canvas && art && !still) startRift(canvas, art);
+// The hero's sample answers load after the page has drawn, so the headline never waits for them.
+const heroChat = document.getElementById('hero-chat');
+if (heroChat) void import('./hero-chat').then((m) => m.mountHeroChat(heroChat));
 
 initDemo();
 
@@ -24,7 +23,7 @@ if (!still && 'IntersectionObserver' in window) {
     '.proof-head h2, .proof-head p, .specimen, .try-intro, .try-form',
     '.tools h2, .tool-list > div',
     '.faq h2, .qa',
-    '.closing, .closing-note',
+    '.portal-strip li, .closing, .closing-note',
     '.foot-top, .foot-line, .foot-meta',
   ];
   const io = new IntersectionObserver(
