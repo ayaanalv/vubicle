@@ -13,7 +13,7 @@ Vubicle stands for **virtual cubicle**: one study workspace per course. A studen
 
 It runs entirely on free tiers (Vercel Hobby, Google Gemini, Groq, Upstash Redis), so most of the interesting engineering is about staying reliable when any one free service is slow, overloaded or out of quota. It does that without making students download anything or see an error.
 
-![Vubicle landing page: an office worker looks through a hole broken in his cubicle wall at a galaxy full of study symbols](docs/screenshots/landing.jpg)
+![Vubicle landing page: the headline "Ask your course files. Every answer cites the page." beside a sample answer about Kepler's second law, with the cited page of the source open next to it](docs/screenshots/landing.jpg)
 
 ## Contents
 
