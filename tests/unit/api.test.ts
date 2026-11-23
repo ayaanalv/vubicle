@@ -471,8 +471,9 @@ describe('handler', () => {
     expect(f).not.toHaveBeenCalled();
   });
 
-  it('issues tokens only to Vubicle pages, and limits how many', async () => {
-    const deps = { config: cfg(), store: memoryStore() };
+  it('issues tokens only to Vubicle pages, and limits how many on Vercel', async () => {
+    // A preview deployment: on Vercel, but localhost origins are still allowed outside production.
+    const deps = { config: cfg({ VERCEL_ENV: 'preview' }), store: memoryStore() };
     expect((await handleToken(tokenReq('https://evil.example'), deps)).status).toBe(403);
     const res = await handleToken(tokenReq(), deps);
     const { token, expiresIn } = await res.json();
@@ -481,6 +482,18 @@ describe('handler', () => {
     expect(checkToken(token, personKey('9.9.9.9'), 'test-secret')).toBe('ok');
     for (let i = 0; i < 29; i++) await handleToken(tokenReq(), deps);
     expect((await handleToken(tokenReq(), deps)).status).toBe(429);
+  });
+
+  it('does not limit tokens on a local server, where every test browser shares one address', async () => {
+    const deps = { config: cfg(), store: memoryStore() };
+    expect(deps.config.localDev).toBe(true);
+    for (let i = 0; i < 40; i++) expect((await handleToken(tokenReq(), deps)).status).toBe(200);
+    // The same requests on Vercel production hit the limit.
+    const prod = { config: cfg({ VERCEL_ENV: 'production', ALLOWED_ORIGINS: 'http://localhost:5173' }), store: memoryStore() };
+    const statuses: number[] = [];
+    for (let i = 0; i < 31; i++) statuses.push((await handleToken(tokenReq(), prod)).status);
+    expect(statuses.slice(0, 30).every((s) => s === 200)).toBe(true);
+    expect(statuses[30]).toBe(429);
   });
 
   it('refuses everything in a deployment with no TOKEN_SECRET, and logs why', async () => {

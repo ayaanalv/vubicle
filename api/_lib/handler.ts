@@ -115,8 +115,13 @@ export async function handleToken(req: Request, deps: Deps): Promise<Response> {
   const secret = tokenSecret(c, deps.log);
   if (!secret) return notReady();
   const person = personKey(clientIp(req), c.ipSalt);
-  const quota = await take(store, person, [{ name: 'tok', cap: TOKENS_PER_HOUR, windowSec: 3600 }]);
-  if (!quota.allowed) return busy(quota.resetIn, 'cap', `Too many sessions started from this address. Try again in ${minutes(quota.resetIn)}.`);
+  // Local servers (npm run dev, the browser tests) skip this limit: every test browser there has the same
+  // address, so one full test run used up the hour's tokens and later tests waited in line. Every Vercel
+  // deployment, production or preview, keeps it (the same "is local" rule as the development secret).
+  if (!c.localDev) {
+    const quota = await take(store, person, [{ name: 'tok', cap: TOKENS_PER_HOUR, windowSec: 3600 }]);
+    if (!quota.allowed) return busy(quota.resetIn, 'cap', `Too many sessions started from this address. Try again in ${minutes(quota.resetIn)}.`);
+  }
   return json(200, issueToken(person, secret));
 }
 
