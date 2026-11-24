@@ -21,6 +21,8 @@ export interface StoredFile {
   addedAt: number;
   status: 'reading' | 'ready' | 'error';
   progress?: number;
+  /** While a scanned PDF's pages are read with text recognition: which page, out of how many scanned pages. */
+  scan?: { preparing: boolean; page: number; total: number };
   error?: string;
   sections?: number;
   /** Embeddings: none yet, some done, all done, or unavailable (keyword search only). */

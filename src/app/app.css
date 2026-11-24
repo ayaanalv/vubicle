@@ -473,6 +473,13 @@ textarea.input {
   height: 100%;
   background: var(--data);
 }
+/* Cancel under a scanned PDF's progress bar: always shown, unlike the hover-only remove button */
+.file .btn.file-cancel {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 6px;
+  opacity: 1;
+}
 .drop {
   margin: 8px 16px 16px;
   padding: 16px;

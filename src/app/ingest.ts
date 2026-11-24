@@ -3,7 +3,8 @@
 import './polyfills';
 import { detectKind, parsePptx, parseDocx, parseNote, parsePdf, FileError, type Parsed } from '../lib/parse';
 import { chunkSections } from '../lib/chunk';
-import { askToPersist, db, put, uid, changed, type StoredFile } from './db';
+import { askToPersist, db, deleteFile, put, uid, changed, type StoredFile } from './db';
+import { readScannedPages, Cancelled } from './ocr';
 import { ai, embed, whenIdle, AiError } from './api';
 
 /** Pause between embedding batches. A 200-page course is about ten batches, so indexing takes a minute or two. */
@@ -127,6 +128,15 @@ const saveOrExplain = async (...args: Parameters<typeof put>) => {
   }
 };
 
+/** Files being read right now, so reading can be stopped (scanned PDFs can take minutes). */
+const readingNow = new Map<string, AbortController>();
+
+/** Stops reading a file and removes it. Used by Cancel, and by Remove while a file is still being read. */
+export async function cancelReading(file: StoredFile) {
+  readingNow.get(file.id)?.abort();
+  await deleteFile(file);
+}
+
 /** Reads a file into the cubicle. Throws StorageError when the browser will not store anything at all. */
 export async function addFile(cubicleId: string, f: File) {
   const rec: StoredFile = { id: uid(), cubicleId, name: f.name, kind: 'note', size: f.size, addedAt: Date.now(), status: 'reading', progress: 0 };
@@ -142,13 +152,28 @@ export async function addFile(cubicleId: string, f: File) {
     if (kind === 'pdf') {
       const pdfjs = await loadPdfJs();
       let lastPaint = 0;
-      parsed = await parsePdf(f.name, bytes, pdfjs as never, (done, total) => {
-        // Writing progress on every page would flood IndexedDB on long PDFs.
-        if (Date.now() - lastPaint > 250 || done === total) {
-          lastPaint = Date.now();
-          put('files', { ...rec, progress: done / total }).catch(() => {});
-        }
-      });
+      const reading = new AbortController();
+      readingNow.set(rec.id, reading);
+      try {
+        parsed = await parsePdf(
+          f.name,
+          bytes,
+          pdfjs as never,
+          (done, total) => {
+            // Writing progress on every page would flood IndexedDB on long PDFs.
+            if (Date.now() - lastPaint > 250 || done === total) {
+              lastPaint = Date.now();
+              put('files', { ...rec, progress: done / total }).catch(() => {});
+            }
+          },
+          (doc, pages) =>
+            readScannedPages(doc, pages, reading.signal, (scan) => {
+              if (!reading.signal.aborted) put('files', { ...rec, progress: scan.preparing ? 0 : (scan.page - 1) / scan.total, scan }).catch(() => {});
+            }),
+        );
+      } finally {
+        readingNow.delete(rec.id);
+      }
     } else if (kind === 'image') {
       // Only the shrunk JPEG is kept: it is what the AI read, and every browser can show it.
       const photo = await shrinkPhoto(f.name, bytes, f.type);
@@ -164,7 +189,8 @@ export async function addFile(cubicleId: string, f: File) {
     await store(rec, parsed, new Blob([bytes], { type: f.type || 'application/octet-stream' }));
     void embedPending(cubicleId);
   } catch (e) {
-    // Removed while it was being read: don't bring it back as an error row.
+    // Cancelled, or removed while it was being read: don't bring it back as an error row.
+    if (e instanceof Cancelled) return;
     if (!(await (await db()).get('files', rec.id).catch(() => true))) return;
     if (!(e instanceof FileError)) console.error(e);
     const message =

@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import { loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
+import { copyFileSync, mkdirSync } from 'node:fs';
 
 /**
  * Serves /api in `npm run dev` with the same handlers Vercel runs. With keys in .env.local it calls the
@@ -45,10 +46,33 @@ function devApi(): Plugin {
   };
 }
 
+/**
+ * Copies the text recognition (OCR) files into public/ocr/ so the site serves them itself, for both the dev
+ * server and the build. Only what the browser can ask for: the worker, the three LSTM-only engine builds
+ * (it picks one by browser support), and the compact English model. public/ocr/ is not committed.
+ */
+function ocrFiles(): Plugin {
+  const files: [string, string][] = [
+    ['node_modules/tesseract.js/dist/worker.min.js', 'worker.min.js'],
+    ['node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js', 'tesseract-core-lstm.wasm.js'],
+    ['node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js', 'tesseract-core-simd-lstm.wasm.js'],
+    ['node_modules/tesseract.js-core/tesseract-core-relaxedsimd-lstm.wasm.js', 'tesseract-core-relaxedsimd-lstm.wasm.js'],
+    ['node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz', 'eng.traineddata.gz'],
+  ];
+  return {
+    name: 'vubicle-ocr-files',
+    buildStart() {
+      const out = resolve(import.meta.dirname, 'public/ocr');
+      mkdirSync(out, { recursive: true });
+      for (const [from, to] of files) copyFileSync(resolve(import.meta.dirname, from), resolve(out, to));
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), devApi()],
+  plugins: [react(), devApi(), ocrFiles()],
   // Pre-bundle up front so the dev server never reloads the page mid-session (it would in e2e tests).
-  optimizeDeps: { include: ['react', 'react-dom/client', 'react/jsx-dev-runtime', 'idb', 'lucide-react', 'fflate', 'pdfjs-dist/legacy/build/pdf.mjs'] },
+  optimizeDeps: { include: ['react', 'react-dom/client', 'react/jsx-dev-runtime', 'idb', 'lucide-react', 'fflate', 'pdfjs-dist/legacy/build/pdf.mjs', 'tesseract.js'] },
   // pdf.js starts its worker as a module worker, so ours (src/app/pdf.worker.ts) is built as one.
   worker: { format: 'es' },
   build: {

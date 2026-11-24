@@ -12,3 +12,6 @@ test-results
 .vercel
 .env*
 !.env.example
+
+# Text recognition files, copied from node_modules by vite.config.ts
+/public/ocr

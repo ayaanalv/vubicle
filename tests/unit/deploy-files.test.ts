@@ -66,4 +66,25 @@ describe('security headers', () => {
   it('tells browsers to use HTTPS only, without joining the preload list', () => {
     expect(get('Strict-Transport-Security')).toBe('max-age=63072000; includeSubDomains');
   });
+
+  // Text recognition runs WebAssembly, which needs 'wasm-unsafe-eval'. Only files under /ocr/ get it; pages never do.
+  const rules: { source: string; headers: { key: string; value: string }[] }[] = JSON.parse(readFileSync('vercel.json', 'utf8')).headers;
+  const ORIGINAL =
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+  // Vercel matches sources as whole-path regular expressions; this is the same test for these simple patterns.
+  const cspFor = (path: string) =>
+    rules
+      .filter((r) => new RegExp(`^${r.source}$`).test(path))
+      .flatMap((r) => r.headers)
+      .filter((h) => h.key === 'Content-Security-Policy')
+      .map((h) => h.value);
+  it('keeps the original policy, without WebAssembly, on every page', () => {
+    for (const path of ['/', '/app/', '/app/index.html', '/privacy/', '/assets/app-1.js', '/samples/physics.vubicle', '/ocrx', '/app/ocr/']) expect(cspFor(path)).toEqual([ORIGINAL]);
+  });
+  it('allows WebAssembly only for the text recognition files, with nothing else changed', () => {
+    for (const path of ['/ocr/worker.min.js', '/ocr/tesseract-core-simd-lstm.wasm.js', '/ocr/eng.traineddata.gz'])
+      expect(cspFor(path)).toEqual([ORIGINAL.replace("script-src 'self';", "script-src 'self' 'wasm-unsafe-eval';")]);
+    const strip = (hs: { key: string; value: string }[]) => hs.filter((h) => h.key !== 'Content-Security-Policy');
+    expect(strip(rules.find((r) => r.source === '/ocr/(.*)')!.headers)).toEqual(strip(headers));
+  });
 });

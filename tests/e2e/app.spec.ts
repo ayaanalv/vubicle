@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { mockAi } from '../mock-ai';
-import { makePdf, makePptx, makeDocx } from '../fixtures/make';
+import { makePdf, makePptx, makeDocx, makeScannedPdf } from '../fixtures/make';
 import { SAMPLES } from '../../src/app/samples';
 
 const lecture = makePdf([
@@ -114,6 +114,78 @@ test('files are read in the browser, with clear errors for unsupported ones', as
   await expect(list.getByText('2 slides', { exact: false })).toBeVisible();
   await expect(list.getByText(/scanned PDF/)).toBeVisible();
   await expect(list.getByText(/older PowerPoint file/)).toBeVisible();
+});
+
+/** Draws lines of text as a "scanned" page in the browser and returns it as JPEG bytes, like a phone scan. */
+async function scanOf(page: Page, lines: string[]) {
+  const b64 = await page.evaluate((ls) => {
+    const c = document.createElement('canvas');
+    c.width = 1275;
+    c.height = 1650;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#111';
+    g.font = '34px Georgia, serif';
+    ls.forEach((l, i) => g.fillText(l, 110, 180 + i * 56));
+    return c.toDataURL('image/jpeg', 0.9).split(',')[1];
+  }, lines);
+  return { width: 1275, height: 1650, jpeg: new Uint8Array(Buffer.from(b64, 'base64')) };
+}
+
+test('a scanned PDF is read in the browser page by page, and answers cite the right page', async ({ page }) => {
+  test.setTimeout(120_000);
+  const sentOut: string[] = [];
+  page.on('request', (r) => {
+    if (!r.url().startsWith('http://localhost')) sentOut.push(r.url());
+  });
+  await setUp(page);
+  const pdf = makeScannedPdf([
+    ['Lecture 4: Orbits and gravitation', 'Kepler showed that planets move in elliptical orbits.'],
+    await scanOf(page, ['Escape velocity is the minimum speed needed', 'to leave a body without further thrust.']),
+    await scanOf(page, ['Satellites in lower orbits move faster', 'than satellites in higher orbits.']),
+  ]);
+  await addFiles(page, [{ name: 'scanned-notes.pdf', buffer: buf(pdf), mimeType: 'application/pdf' }]);
+  const list = page.getByRole('list', { name: 'Files in this cubicle' });
+  await expect(list.getByText(/Reading scanned page \d of 2|getting text recognition ready/)).toBeVisible();
+  await expect(list.getByRole('button', { name: 'Cancel' })).toBeVisible();
+  await expect(list.getByText('3 pages', { exact: false })).toBeVisible({ timeout: 90_000 });
+
+  await page.getByLabel('Ask about your material').fill('What is escape velocity?');
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  await page.getByRole('button', { name: 'Open source 1' }).click();
+  const viewer = page.getByRole('complementary', { name: 'Source' });
+  await expect(viewer.getByText('p. 2', { exact: true })).toBeVisible();
+  await expect(viewer.locator('.passage.hit')).toContainText(/minimum speed/i);
+  // Recognition ran here: nothing went to any other server.
+  expect(sentOut).toEqual([]);
+});
+
+test('a normal PDF never loads the text recognition files', async ({ page }) => {
+  const ocr: string[] = [];
+  page.on('request', (r) => {
+    if (/\/ocr\/|tesseract/i.test(r.url())) ocr.push(r.url());
+  });
+  await setUp(page);
+  await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
+  await expect(page.getByText('2 pages', { exact: false })).toBeVisible();
+  await page.getByLabel('Ask about your material').fill('What is escape velocity?');
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Open source 1' })).toBeVisible();
+  expect(ocr).toEqual([]);
+});
+
+test('reading a scanned PDF can be cancelled', async ({ page }) => {
+  await setUp(page);
+  const pages = [];
+  for (let i = 0; i < 6; i++) pages.push(await scanOf(page, [`Page ${i + 1}: Newton's law of gravitation applies to every mass.`]));
+  await addFiles(page, [{ name: 'long-scan.pdf', buffer: buf(makeScannedPdf(pages)), mimeType: 'application/pdf' }]);
+  const list = page.getByRole('list', { name: 'Files in this cubicle' });
+  await list.getByRole('button', { name: 'Cancel' }).click();
+  await expect(list.getByText('long-scan.pdf')).toHaveCount(0);
+  // It stays gone: no late progress update brings the row back.
+  await page.waitForTimeout(3000);
+  await expect(list.getByText('long-scan.pdf')).toHaveCount(0);
 });
 
 test('chat answers with citations that open the passage in context', async ({ page }) => {

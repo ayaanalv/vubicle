@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { detectKind, parsePptx, parseDocx, parseNote, parsePdf, FileError, decodeXml, elements, MAX_XML_BYTES } from '../../src/lib/parse';
 import { zipSync, strToU8 } from 'fflate';
-import { makePdf, makePptx, makeDocx } from '../fixtures/make';
+import { makePdf, makePptx, makeDocx, makeScannedPdf } from '../fixtures/make';
 
 describe('detectKind', () => {
   it('rejects old Office files with a helpful message', () => {
@@ -105,5 +105,30 @@ describe('parsePdf', () => {
   });
   it('fails clearly on a file that is not a PDF', async () => {
     await expect(parsePdf('x.pdf', new TextEncoder().encode('not a pdf at all'), pdfjs)).rejects.toThrow(FileError);
+  });
+
+  const scan = { width: 8, height: 8, gray: new Uint8Array(64).fill(200) };
+  const ocrText: Record<number, string> = {
+    2: 'Escape velocity is the minimum speed needed to leave a body with-\nout further thrust.',
+    3: 'Satellites in lower orbits move faster than those further out.',
+  };
+  it('sends only picture pages with no text to text recognition, and keeps every page number', async () => {
+    const asked: number[][] = [];
+    const reader = async (_doc: unknown, pages: number[]) => (asked.push(pages), new Map(pages.map((p) => [p, ocrText[p]])));
+    // Page 1 has text, 2 and 3 are scans, 4 is blank (no picture), 5 has text.
+    const pdf = makeScannedPdf([['Lecture 4: Orbits and gravitation'], scan, scan, [], ['Kepler showed that orbits are ellipses.']]);
+    const { sections } = await parsePdf('mixed.pdf', pdf, pdfjs, undefined, reader);
+    expect(asked).toEqual([[2, 3]]);
+    expect(sections.map((s) => s.label)).toEqual(['p. 1', 'p. 2', 'p. 3', 'p. 5']);
+    expect(sections[1].page).toBe(2);
+    expect(sections[1].text).toContain('leave a body without further thrust');
+  });
+  it('never calls text recognition for a normal PDF', async () => {
+    let called = false;
+    await parsePdf('l.pdf', makePdf([['Planets move in ellipses around the Sun.'], ['Escape velocity is about 11.2 km/s.']]), pdfjs, undefined, async () => ((called = true), new Map()));
+    expect(called).toBe(false);
+  });
+  it('says plainly when text recognition finds nothing to read', async () => {
+    await expect(parsePdf('blurry.pdf', makeScannedPdf([scan, scan]), pdfjs, undefined, async () => new Map([[1, ''], [2, ' ~ ']]))).rejects.toThrow(/text recognition found little or no text/);
   });
 });

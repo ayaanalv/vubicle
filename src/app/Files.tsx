@@ -1,13 +1,15 @@
 import { useRef, useState } from 'react';
 import { FileText, Presentation, FileType2, NotebookPen, Image, Upload, Trash2, AlertCircle, Loader2, X } from 'lucide-react';
 import { deleteFile, type Cubicle, type StoredFile } from './db';
-import { addFile, addNote, storageErrorMessage } from './ingest';
+import { addFile, addNote, cancelReading, storageErrorMessage } from './ingest';
 import { Dialog } from './ui';
 
 const ICONS = { pdf: FileText, pptx: Presentation, docx: FileType2, note: NotebookPen, image: Image };
 const UNIT = { pdf: 'pages', pptx: 'slides', docx: 'sections', note: 'sections', image: 'photos' };
 
 function meta(f: StoredFile) {
+  if (f.status === 'reading' && f.scan)
+    return f.scan.preparing ? 'Scanned PDF: getting text recognition ready…' : `Reading scanned page ${f.scan.page} of ${f.scan.total}…`;
   if (f.status === 'reading') return f.kind === 'image' ? 'The AI is reading the photo' : `Reading${f.progress ? ` ${Math.round(f.progress * 100)}%` : ''}`;
   if (f.status === 'error') return 'Could not read';
   const n = `${f.sections ?? 0} ${f.sections === 1 ? UNIT[f.kind].slice(0, -1) : UNIT[f.kind]}`;
@@ -97,6 +99,11 @@ export function Files({ cubicle, files, onDone }: { cubicle: Cubicle; files: Sto
                   <i style={{ transform: `scaleX(${Math.max(0.04, f.progress ?? 0)})` }} />
                 </span>
               )}
+              {f.status === 'reading' && f.scan && (
+                <button className="btn sm file-cancel" onClick={() => void cancelReading(f)}>
+                  Cancel
+                </button>
+              )}
               {f.error && (
                 <span className="file-error" role="alert">
                   {f.error}
@@ -119,7 +126,8 @@ export function Files({ cubicle, files, onDone }: { cubicle: Cubicle; files: Sto
             <button
               className="btn primary"
               onClick={async () => {
-                if (confirm) await deleteFile(confirm);
+                // A file still being read is stopped first, so text recognition doesn't keep running.
+                if (confirm) await (confirm.status === 'reading' ? cancelReading(confirm) : deleteFile(confirm));
                 setConfirm(null);
               }}
             >

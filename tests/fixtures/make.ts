@@ -31,6 +31,77 @@ export function makePdf(pages: string[][]): Uint8Array {
   return strToU8(out);
 }
 
+/** A page that is one picture covering the page, like a scan: a JPEG, or raw 8-bit grey pixels. */
+export interface ScanImage {
+  width: number;
+  height: number;
+  jpeg?: Uint8Array;
+  gray?: Uint8Array;
+}
+
+/**
+ * A PDF whose pages are either lines of real text or a single image with no text layer, like a scanned
+ * page. Built as bytes, because image data is binary.
+ */
+export function makeScannedPdf(pages: (string[] | ScanImage)[]): Uint8Array {
+  const objs: (string | [string, Uint8Array])[] = [];
+  const kids: number[] = [];
+  objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+  let n = 4;
+  for (const p of pages) {
+    const pageId = n++;
+    const contentId = n++;
+    kids.push(pageId);
+    if (Array.isArray(p)) {
+      const esc = (s: string) => s.replace(/([()\\])/g, '\\$1');
+      const stream = p.length ? `BT /F1 12 Tf 72 720 Td 14 TL ${p.map((l) => `(${esc(l)}) Tj T*`).join(' ')} ET` : '';
+      objs[pageId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>`;
+      objs[contentId] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+    } else {
+      const imgId = n++;
+      const data = p.jpeg ?? p.gray!;
+      // Browser-made JPEGs are colour; raw pixels here are grey.
+      const filter = p.jpeg ? ' /ColorSpace /DeviceRGB /Filter /DCTDecode' : ' /ColorSpace /DeviceGray';
+      objs[imgId] = [`<< /Type /XObject /Subtype /Image /Width ${p.width} /Height ${p.height}${filter} /BitsPerComponent 8 /Length ${data.length} >>\nstream\n`, data];
+      const stream = 'q 612 0 0 792 0 0 cm /Im1 Do Q';
+      objs[pageId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject << /Im1 ${imgId} 0 R >> >> /Contents ${contentId} 0 R >>`;
+      objs[contentId] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+    }
+  }
+  objs[2] = `<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(' ')}] /Count ${kids.length} >>`;
+  const parts: Uint8Array[] = [];
+  let length = 0;
+  const add = (b: Uint8Array | string) => {
+    const u = typeof b === 'string' ? strToU8(b) : b;
+    parts.push(u);
+    length += u.length;
+  };
+  add('%PDF-1.4\n');
+  const offsets: number[] = [];
+  for (let i = 1; i < objs.length; i++) {
+    offsets[i] = length;
+    const o = objs[i];
+    if (typeof o === 'string') add(`${i} 0 obj\n${o}\nendobj\n`);
+    else {
+      add(`${i} 0 obj\n${o[0]}`);
+      add(o[1]);
+      add('\nendstream\nendobj\n');
+    }
+  }
+  const xref = length;
+  add(`xref\n0 ${objs.length}\n0000000000 65535 f \n`);
+  for (let i = 1; i < objs.length; i++) add(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
+  add(`trailer\n<< /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  const out = new Uint8Array(length);
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+
 const xmlEsc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** Slides as lists of paragraphs, with optional speaker notes per slide. */

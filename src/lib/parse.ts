@@ -218,15 +218,31 @@ export function parseNote(title: string, text: string): Parsed {
 
 // Minimal slice of the pdf.js API we use, so tests can pass the Node build and the app the browser one.
 interface PdfJs {
+  OPS: Record<string, number>;
   getDocument(src: { data: Uint8Array; useSystemFonts?: boolean }): {
     promise: Promise<{
       numPages: number;
-      getPage(n: number): Promise<{ getTextContent(): Promise<{ items: unknown[] }> }>;
+      getPage(n: number): Promise<{ getTextContent(): Promise<{ items: unknown[] }>; getOperatorList(): Promise<{ fnArray: number[] }> }>;
     }>;
   };
 }
 
-export async function parsePdf(name: string, bytes: Uint8Array, pdfjs: PdfJs, onProgress?: (done: number, total: number) => void): Promise<Parsed> {
+/**
+ * Reads scanned pages with text recognition (OCR). Given the open pdf.js document and the page numbers
+ * (from 1) that are pictures with no text; returns each page's text. Kept outside this file so the
+ * recognition code is only loaded when a PDF needs it.
+ */
+export type ScanReader = (doc: unknown, pages: number[]) => Promise<Map<number, string>>;
+
+const IMAGE_OPS = ['paintImageXObject', 'paintInlineImageXObject', 'paintImageMaskXObject', 'paintImageXObjectRepeat', 'paintInlineImageXObjectGroup', 'paintImageMaskXObjectGroup', 'paintImageMaskXObjectRepeat'];
+
+export async function parsePdf(
+  name: string,
+  bytes: Uint8Array,
+  pdfjs: PdfJs,
+  onProgress?: (done: number, total: number) => void,
+  readScanned?: ScanReader,
+): Promise<Parsed> {
   let doc;
   try {
     // pdf.js may detach the buffer it is given, so pass a copy and keep the original for storage.
@@ -241,7 +257,11 @@ export async function parsePdf(name: string, bytes: Uint8Array, pdfjs: PdfJs, on
     const detail = `${(e as Error)?.name || 'Error'}: ${msg}`.replace(/\s+/g, ' ').slice(0, 160);
     throw new FileError(`"${name}" could not be opened as a PDF. It may be damaged, or this browser may be too old to read it. (Details: ${detail})`);
   }
-  const sections: Section[] = [];
+  const imageOps = new Set(IMAGE_OPS.map((k) => pdfjs.OPS[k]).filter((v) => v !== undefined));
+  let sections: Section[] = [];
+  // Pages with no selectable text that show a picture: scanned pages. Blank pages are skipped, so a
+  // normal PDF never loads the recognition code.
+  const scanned: number[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
@@ -252,13 +272,24 @@ export async function parsePdf(name: string, bytes: Uint8Array, pdfjs: PdfJs, on
     }
     // Join words hyphenated across line ends.
     text = tidy(text.replace(/(\w)-\n(\w)/g, '$1$2'));
-    if (text) sections.push({ label: `p. ${i}`, page: i, text });
+    if (text.length >= 3) sections.push({ label: `p. ${i}`, page: i, text });
+    else if (readScanned && (await page.getOperatorList()).fnArray.some((f) => imageOps.has(f))) scanned.push(i);
     onProgress?.(i, doc.numPages);
+  }
+  if (scanned.length && readScanned) {
+    const read = await readScanned(doc, scanned);
+    for (const [page, raw] of read) {
+      const text = tidy(raw.replace(/(\w)-\n(\w)/g, '$1$2'));
+      if (text) sections.push({ label: `p. ${page}`, page, text });
+    }
+    sections = sections.sort((a, b) => (a.page ?? 0) - (b.page ?? 0));
   }
   const chars = sections.reduce((n, s) => n + s.text.length, 0);
   if (chars < Math.max(40, doc.numPages * 15)) {
     throw new FileError(
-      `"${name}" looks like a scanned PDF: its pages are pictures, with no text to read. Run it through text recognition (OCR), for example by opening it in Google Drive with Google Docs, then add the result.`,
+      scanned.length
+        ? `"${name}" is a scanned PDF, and text recognition found little or no text in it. The scan may be faint, blurry or handwritten. Try a clearer scan, or take photos of the pages and add those instead.`
+        : `"${name}" looks like a scanned PDF: its pages are pictures, with no text to read. Run it through text recognition (OCR), for example by opening it in Google Drive with Google Docs, then add the result.`,
     );
   }
   return { kind: 'pdf', sections };
