@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Timer as TimerIcon, Play, Pause, RotateCcw } from 'lucide-react';
 import { useNow } from './ui';
 
@@ -47,22 +47,35 @@ function chime() {
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
 
-/** A Pomodoro timer on the desk: 25 minutes of focus, 5 minute breaks, a long break every fourth round. */
-export function Timer() {
-  const [s, setS] = useState<State>(load);
-  const [open, setOpen] = useState(false);
-  const [announce, setAnnounce] = useState('');
-  const now = useNow(s.endsAt !== null, 500);
-  const wrap = useRef<HTMLDivElement>(null);
-  const left = s.endsAt ? Math.max(0, Math.ceil((s.endsAt - now) / 1000)) : s.left;
+// One timer for the whole page: the controls live in the tools drawer, and a countdown shows in the top
+// bar while it runs. Both read this store, so they always agree.
+let state: State = load();
+const listeners = new Set<() => void>();
+function setState(next: State) {
+  state = next;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+  listeners.forEach((l) => l());
+}
+const subscribe = (l: () => void) => (listeners.add(l), () => void listeners.delete(l));
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(s));
-    } catch {
-      /* ignore */
-    }
-  }, [s]);
+function useTimer() {
+  const s = useSyncExternalStore(subscribe, () => state);
+  const now = useNow(s.endsAt !== null, 500);
+  const left = s.endsAt ? Math.max(0, Math.ceil((s.endsAt - now) / 1000)) : s.left;
+  return { s, left, running: s.endsAt !== null };
+}
+
+/**
+ * The countdown in the top bar, shown only while the timer runs; it opens the tools drawer. Always mounted,
+ * so it also ends each period (chime, next period) and keeps the tab title current.
+ */
+export function TimerChip({ onOpen }: { onOpen: () => void }) {
+  const { s, left, running } = useTimer();
+  const [announce, setAnnounce] = useState('');
 
   // Period finished: chime, then move to the next period, paused.
   useEffect(() => {
@@ -71,7 +84,7 @@ export function Timer() {
       const rounds = s.mode === 'focus' ? s.rounds + 1 : s.rounds;
       const next: Mode = s.mode === 'focus' ? (rounds % 4 === 0 ? 'long' : 'short') : 'focus';
       setAnnounce(`${NAME[s.mode]} finished. Next: ${NAME[next].toLowerCase()}.`);
-      setS({ mode: next, endsAt: null, left: LENGTH[next] * 60, rounds });
+      setState({ mode: next, endsAt: null, left: LENGTH[next] * 60, rounds });
     }
   }, [left, s.endsAt]);
 
@@ -80,56 +93,50 @@ export function Timer() {
     document.title = s.endsAt ? `${fmt(left)} ${NAME[s.mode]} · ${base}` : base;
   }, [left, s.endsAt, s.mode]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => !wrap.current?.contains(e.target as Node) && setOpen(false);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const running = s.endsAt !== null;
-  const toggle = () => setS(running ? { ...s, endsAt: null, left } : { ...s, endsAt: Date.now() + left * 1000 });
-  const setMode = (m: Mode) => setS({ ...s, mode: m, endsAt: null, left: LENGTH[m] * 60 });
-
   return (
-    <div className="menu-wrap" ref={wrap}>
-      <button className={`btn sm timer-btn${running ? ' running' : ''}`} aria-expanded={open} aria-label={`Focus timer, ${NAME[s.mode]}, ${fmt(left)} ${running ? 'running' : 'paused'}`} onClick={() => setOpen(!open)}>
-        <TimerIcon aria-hidden="true" />
-        <span className="t-text num">{fmt(left)}</span>
-      </button>
+    <>
       <span className="sr-only" role="status">
         {announce}
       </span>
-      {open && (
-        <div className="menu timer-panel" role="dialog" aria-label="Focus timer">
-          <div className="timer-modes" role="group" aria-label="Timer mode">
-            {(Object.keys(LENGTH) as Mode[]).map((m) => (
-              <button key={m} className="tab" aria-pressed={s.mode === m} style={s.mode === m ? { background: 'var(--surface-2)', color: 'var(--ink)' } : undefined} onClick={() => setMode(m)}>
-                {NAME[m]}
-              </button>
-            ))}
-          </div>
-          <div className="timer-face" aria-hidden="true">
-            {fmt(left)}
-          </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-            <button className="btn primary" onClick={toggle}>
-              {running ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />} {running ? 'Pause' : 'Start'}
-            </button>
-            <button className="btn" onClick={() => setMode(s.mode)} aria-label="Reset timer">
-              <RotateCcw aria-hidden="true" />
-            </button>
-          </div>
-          <p className="muted small" style={{ textAlign: 'center' }}>
-            {s.rounds} focus round{s.rounds === 1 ? "" : "s"} done · long break after every 4
-          </p>
-        </div>
+      {running && (
+        <button className="btn sm timer-btn running" aria-label={`Focus timer, ${NAME[s.mode]}, ${fmt(left)} left. Open the timer`} onClick={onOpen}>
+          <TimerIcon aria-hidden="true" />
+          <span className="t-text num">{fmt(left)}</span>
+        </button>
       )}
+    </>
+  );
+}
+
+/** A Pomodoro timer: 25 minutes of focus, 5 minute breaks, a long break every fourth round. */
+export function TimerPanel() {
+  const { s, left, running } = useTimer();
+  const toggle = () => setState(running ? { ...s, endsAt: null, left } : { ...s, endsAt: Date.now() + left * 1000 });
+  const setMode = (m: Mode) => setState({ ...s, mode: m, endsAt: null, left: LENGTH[m] * 60 });
+
+  return (
+    <div className="timer-panel">
+      <div className="timer-modes" role="group" aria-label="Timer mode">
+        {(Object.keys(LENGTH) as Mode[]).map((m) => (
+          <button key={m} className="tab" aria-pressed={s.mode === m} style={s.mode === m ? { background: 'var(--surface-2)', color: 'var(--ink)' } : undefined} onClick={() => setMode(m)}>
+            {NAME[m]}
+          </button>
+        ))}
+      </div>
+      <div className="timer-face" aria-hidden="true">
+        {fmt(left)}
+      </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <button className="btn primary" onClick={toggle}>
+          {running ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />} {running ? 'Pause' : 'Start'}
+        </button>
+        <button className="btn" onClick={() => setMode(s.mode)} aria-label="Reset timer">
+          <RotateCcw aria-hidden="true" />
+        </button>
+      </div>
+      <p className="muted small" style={{ textAlign: 'center' }}>
+        {s.rounds} focus round{s.rounds === 1 ? '' : 's'} done · long break after every 4
+      </p>
     </div>
   );
 }

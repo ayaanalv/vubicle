@@ -47,7 +47,8 @@ for (const sample of SAMPLES) {
     await expect(page.getByRole('button', { name: 'Check my answers' })).toBeVisible(AI);
 
     // A concept map.
-    await page.getByRole('tab', { name: 'Concept map' }).click();
+    await page.getByRole('button', { name: /^More tools/ }).click();
+    await page.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: /^Concept map/ }).click();
     await page.getByRole('button', { name: 'Map the topics' }).click();
     await expect(page.locator('.node').first()).toBeVisible(AI);
 

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { MessagesSquare, GraduationCap, Layers, FileText, ListChecks, Network, CalendarDays, FolderOpen, MoreHorizontal, Plus, Download, Upload, Trash2, Sun, Moon, Monitor, ShieldCheck, Pencil, Home } from 'lucide-react';
+import { MessagesSquare, GraduationCap, Layers, FileText, ListChecks, Network, CalendarDays, FolderOpen, MoreHorizontal, Plus, Download, Upload, Trash2, Sun, Moon, Monitor, ShieldCheck, Pencil, Home, BookOpen, LayoutGrid, ChevronDown, X, Timer as TimerIcon } from 'lucide-react';
 import { askToPersist, byCubicle, cubicles, db, put, uid, useLive, type Cubicle } from './db';
 import { Dialog, LineBadge, Menu } from './ui';
 import { Files } from './Files';
@@ -10,21 +10,25 @@ import { MapTool } from './MapView';
 import { Deadlines } from './Deadlines';
 import { Briefs } from './Briefs';
 import { Viewer } from './Viewer';
-import { Timer } from './Timer';
+import { TimerChip, TimerPanel } from './Timer';
 import { PrivacyGate, PrivacyText } from './Privacy';
 import { exportCubicle, importBackup, openSample, DeleteCubicle, LastBackup, BackupReminder } from './Backup';
 import { SAMPLES } from './samples';
 import { embedPending, storageErrorMessage } from './ingest';
 
 export type Tool = 'chat' | 'tutor' | 'cards' | 'quiz' | 'map' | 'briefs' | 'deadlines';
-const TOOLS: { id: Tool; name: string; icon: typeof Layers }[] = [
-  { id: 'chat', name: 'Chat', icon: MessagesSquare },
-  { id: 'tutor', name: 'Tutor', icon: GraduationCap },
-  { id: 'cards', name: 'Flashcards', icon: Layers },
-  { id: 'quiz', name: 'Quiz', icon: ListChecks },
-  { id: 'map', name: 'Concept map', icon: Network },
-  { id: 'briefs', name: 'Briefs', icon: FileText },
-  { id: 'deadlines', name: 'Deadlines', icon: CalendarDays },
+/** The three main tools, always shown as tabs. `short` is the phone label, where space is tight. */
+const MAIN: { id: Tool; name: string; short: string; icon: typeof Layers }[] = [
+  { id: 'chat', name: 'Cited chat', short: 'Chat', icon: MessagesSquare },
+  { id: 'cards', name: 'Flashcards', short: 'Cards', icon: Layers },
+  { id: 'quiz', name: 'Quizzes', short: 'Quizzes', icon: ListChecks },
+];
+/** The other tools, in the "More tools" drawer with the focus timer. */
+const MORE: { id: Tool; name: string; about: string; icon: typeof Layers }[] = [
+  { id: 'tutor', name: 'Tutor', about: 'Answer questions one at a time, with hints and feedback.', icon: GraduationCap },
+  { id: 'map', name: 'Concept map', about: 'See how the main topics connect.', icon: Network },
+  { id: 'briefs', name: 'Briefs', about: 'Summaries, study guides and key terms, with page links.', icon: FileText },
+  { id: 'deadlines', name: 'Deadlines', about: 'Find due dates and weights in a syllabus, then add them to a calendar.', icon: CalendarDays },
 ];
 
 interface DeskApi {
@@ -321,6 +325,8 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
   const [filesOpen, setFilesOpen] = useState(false);
   const [seed, setSeed] = useState<DeskApi['seed']>();
   const [dialog, setDialog] = useState<'delete' | 'rename' | 'privacy' | null>(null);
+  const [drawer, setDrawer] = useState(false);
+  const secondary = MORE.find((t) => t.id === tool);
   const files = useLive(() => byCubicle('files', cubicle.id), ['files'], [cubicle.id]);
   const ready = files?.filter((f) => f.status === 'ready') ?? [];
   const dueCount = useLive(async () => (await byCubicle('cards', cubicle.id)).filter((c) => c.due <= Date.now()).length, ['cards'], [cubicle.id]);
@@ -376,7 +382,7 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
           </select>
           <div className="spacer" />
           <LineBadge />
-          <Timer />
+          <TimerChip onOpen={() => setDrawer(true)} />
           <Menu label="Cubicle and app settings" button={<MoreHorizontal aria-hidden="true" />}>
             {(close) => (
               <>
@@ -391,6 +397,26 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
                 </button>
                 <LastBackup cubicleId={cubicle.id} />
                 <ImportButton inMenu onDone={close} />
+                <hr />
+                <p className="menu-label" id="menu-samples">
+                  Try a sample
+                </p>
+                {SAMPLES.map((s) => (
+                  <button
+                    key={s.id}
+                    role="menuitem"
+                    aria-describedby="menu-samples"
+                    onClick={() => {
+                      close();
+                      // Opens the existing copy if this browser has one; otherwise imports it. No AI request.
+                      openSample(s)
+                        .then(onSwitch)
+                        .catch((e) => window.alert((e as Error).message));
+                    }}
+                  >
+                    <BookOpen aria-hidden="true" /> {s.label}
+                  </button>
+                ))}
                 <hr />
                 <button role="menuitem" onClick={() => (close(), setTheme('light'))}>
                   <Sun aria-hidden="true" /> Light theme
@@ -424,28 +450,52 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
 
           <main className="main">
             <BackupReminder cubicle={cubicle} fileNames={files?.map((f) => f.name) ?? []} />
-            <div className="tools" role="tablist" aria-label="Study tools">
-              <button role="tab" className="tab tool-only-phone" aria-selected={filesOpen} onClick={() => setFilesOpen(true)}>
-                <FolderOpen aria-hidden="true" /> Files
-              </button>
-              {TOOLS.map((t) => (
-                <button
-                  key={t.id}
-                  role="tab"
-                  id={`tab-${t.id}`}
-                  aria-controls="tool-panel"
-                  className="tab"
-                  aria-selected={!filesOpen && tool === t.id}
-                  onClick={() => api.go(t.id)}
-                >
-                  <t.icon aria-hidden="true" /> {t.name}
-                  {t.id === 'cards' && !!dueCount && (
-                    <span className="count num" aria-label={`${dueCount} due`}>
-                      {dueCount}
-                    </span>
-                  )}
+            <div className="tools">
+              <div className="tablist" role="tablist" aria-label="Study tools">
+                <button role="tab" className="tab tool-only-phone" aria-selected={filesOpen} onClick={() => setFilesOpen(true)}>
+                  <FolderOpen aria-hidden="true" /> Files
                 </button>
-              ))}
+                {MAIN.map((t) => (
+                  <button
+                    key={t.id}
+                    role="tab"
+                    id={`tab-${t.id}`}
+                    aria-controls="tool-panel"
+                    className="tab"
+                    aria-selected={!filesOpen && tool === t.id}
+                    onClick={() => api.go(t.id)}
+                  >
+                    <t.icon aria-hidden="true" /> <span className="wide-only">{t.name}</span>
+                    <span className="narrow-only">{t.short}</span>
+                    {t.id === 'cards' && !!dueCount && (
+                      <span className="count num" aria-label={`${dueCount} due`}>
+                        {dueCount}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {/* The other tools. While one is open, this button names it and looks selected. */}
+              <button
+                id="tab-more"
+                className="tab more-tools"
+                aria-haspopup="dialog"
+                aria-expanded={drawer}
+                aria-label={secondary && !filesOpen ? `More tools: ${secondary.name}` : 'More tools'}
+                data-active={Boolean(secondary && !filesOpen)}
+                onClick={() => setDrawer(true)}
+              >
+                {secondary && !filesOpen ? <secondary.icon aria-hidden="true" /> : <LayoutGrid aria-hidden="true" />}
+                {secondary && !filesOpen ? (
+                  <span>{secondary.name}</span>
+                ) : (
+                  <>
+                    <span className="wide-only">More tools</span>
+                    <span className="narrow-only">More</span>
+                  </>
+                )}
+                <ChevronDown aria-hidden="true" className="chev" />
+              </button>
               {hasFiles && (
                 <>
                   <label className="sr-only" htmlFor="scope">
@@ -462,7 +512,7 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
                 </>
               )}
             </div>
-            <div className="panel" id="tool-panel" role="tabpanel" aria-labelledby={`tab-${tool}`}>
+            <div className="panel" id="tool-panel" role="tabpanel" aria-labelledby={secondary ? 'tab-more' : `tab-${tool}`}>
               {!hasFiles ? (
                 <NoFiles reading={files?.some((f) => f.status === 'reading')} onOpenFiles={() => setFilesOpen(true)} />
               ) : tool === 'chat' || tool === 'tutor' ? (
@@ -484,6 +534,15 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
           {view && <Viewer chunkId={view.id} all={view.all} onPick={(id) => setView({ ...view, id })} onClose={() => setView(null)} />}
         </div>
       </div>
+      <ToolsDrawer
+        open={drawer}
+        current={filesOpen ? undefined : tool}
+        onClose={() => setDrawer(false)}
+        onPick={(t) => {
+          setDrawer(false);
+          api.go(t);
+        }}
+      />
       <DeleteCubicle cubicle={cubicle} open={dialog === 'delete'} onClose={() => setDialog(null)} />
       <RenameDialog cubicle={cubicle} open={dialog === 'rename'} onClose={() => setDialog(null)} />
       <Dialog open={dialog === 'privacy'} onClose={() => setDialog(null)} label="Privacy">
@@ -498,6 +557,41 @@ function Workspace({ cubicle, all, onSwitch, onNew }: { cubicle: Cubicle; all: C
         </div>
       </Dialog>
     </Desk.Provider>
+  );
+}
+
+/** A panel from the side with the secondary tools and the focus timer. A native dialog, so Escape closes it. */
+function ToolsDrawer({ open, current, onClose, onPick }: { open: boolean; current?: Tool; onClose: () => void; onPick: (t: Tool) => void }) {
+  return (
+    <Dialog open={open} onClose={onClose} label="More tools" className="drawer">
+      <div className="drawer-body">
+        <div className="drawer-head">
+          <h2>More tools</h2>
+          <button className="btn ghost icon" aria-label="Close" onClick={onClose}>
+            <X aria-hidden="true" />
+          </button>
+        </div>
+        <ul className="drawer-tools">
+          {MORE.map((t) => (
+            <li key={t.id}>
+              <button aria-current={current === t.id ? 'page' : undefined} onClick={() => onPick(t.id)}>
+                <t.icon aria-hidden="true" />
+                <span>
+                  <strong>{t.name}</strong>
+                  <span className="small muted">{t.about}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <section className="drawer-timer" aria-labelledby="timer-title">
+          <h3 id="timer-title">
+            <TimerIcon aria-hidden="true" /> Focus timer
+          </h3>
+          <TimerPanel />
+        </section>
+      </div>
+    </Dialog>
   );
 }
 

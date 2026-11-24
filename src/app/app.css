@@ -333,6 +333,8 @@ textarea.input {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  /* The tab row adapts to this area's width (see the "study" container rules). */
+  container: study / inline-size;
 }
 
 /* tool tabs */
@@ -383,8 +385,40 @@ textarea.input {
   background: var(--data-soft);
   color: var(--data);
 }
+/* The tabs scroll on narrow screens; "More tools" and the file picker stay in view beside them. */
+.tools .tablist {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tools .tablist::-webkit-scrollbar {
+  display: none;
+}
+.more-tools {
+  flex: none;
+  border: 1px solid var(--line);
+}
+.more-tools[data-active='true'] {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: transparent;
+}
+.more-tools .chev {
+  width: 15px;
+  height: 15px;
+  margin-left: -2px;
+}
+.narrow-only {
+  display: none;
+}
 .tools .scope {
   margin-left: auto;
+  /* Gives up its width before the tabs do. */
+  flex: 0 1 240px;
+  min-width: 110px;
   width: auto;
   max-width: 240px;
   min-height: 36px;
@@ -694,6 +728,13 @@ dialog::backdrop {
 }
 .menu .danger {
   color: var(--bad);
+}
+/* A small heading inside the menu, e.g. "Try a sample" */
+.menu .menu-label {
+  padding: 4px 10px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
 }
 /* "Last backed up" under the export item, lined up with the item's text */
 .menu .menu-note {
@@ -1277,9 +1318,80 @@ td .input:focus {
   color: var(--data);
 }
 .timer-panel {
-  padding: 16px;
-  min-width: 280px;
+  display: grid;
   gap: 14px;
+}
+
+/* ---------- tools drawer ---------- */
+dialog.drawer {
+  margin: 0 0 0 auto;
+  width: min(380px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 16px 0 0 16px;
+}
+.drawer-body {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 4px 8px;
+}
+.drawer-tools {
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+.drawer-tools button {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.drawer-tools button:hover,
+.drawer-tools button[aria-current] {
+  background: var(--surface-2);
+}
+.drawer-tools svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  color: var(--muted);
+}
+.drawer-tools button > span {
+  display: grid;
+  gap: 2px;
+}
+.drawer-timer {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 16px 12px 8px;
+  border-top: 1px solid var(--line);
+}
+.drawer-timer h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+}
+.drawer-timer h3 svg {
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
 }
 .timer-face {
   font: 600 44px/1 var(--display);
@@ -1380,9 +1492,49 @@ td .input:focus {
     min-height: 240px;
   }
 }
+/*
+ * Short tab names without icons whenever the study area is narrow: on phones, and on wide screens when a
+ * source is open beside the chat. Measured on the study area itself, not the window.
+ */
+@container study (max-width: 780px) {
+  .tools {
+    gap: 4px;
+  }
+  .tools .tablist {
+    gap: 0;
+  }
+  .tools .tab {
+    padding: 0 8px;
+    gap: 5px;
+  }
+  .tools .tablist .tab svg {
+    display: none;
+  }
+  .tools .wide-only {
+    display: none;
+  }
+  .tools .narrow-only {
+    display: inline;
+  }
+  .more-tools .chev {
+    display: none;
+  }
+}
+@container study (max-width: 560px) {
+  .tools .scope {
+    display: none;
+  }
+  /* No file picker here, so "More" takes the right end. */
+  .more-tools {
+    margin-left: auto;
+  }
+}
 @media (max-width: 560px) {
   .tools .scope {
     display: none;
+  }
+  dialog.drawer {
+    border-radius: 0;
   }
   .timer-btn .t-text {
     display: none;

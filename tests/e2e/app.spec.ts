@@ -44,6 +44,12 @@ async function addFiles(page: Page, files: { name: string; buffer: Buffer; mimeT
 
 const buf = (u: Uint8Array) => Buffer.from(u);
 
+/** Opens a tool that lives in the "More tools" drawer. */
+async function openTool(page: Page, name: string) {
+  await page.getByRole('button', { name: /^More tools/ }).click();
+  await page.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: new RegExp('^' + name) }).click();
+}
+
 test('landing page leads into the app and states the privacy terms', async ({ page }) => {
   const api: string[] = [];
   page.on('request', (r) => r.url().includes('/api/') && api.push(r.url()));
@@ -337,7 +343,7 @@ test('quizzes grade instantly, give partial credit, and are saved for retakes', 
 test('tutor asks, checks the answer and gives hints', async ({ page }) => {
   await setUp(page);
   await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
-  await page.getByRole('tab', { name: 'Tutor' }).click();
+  await openTool(page, 'Tutor');
   await page.getByRole('button', { name: 'Start a session' }).click();
   await expect(page.getByText(/First question/)).toBeVisible();
   await page.getByRole('button', { name: 'Hint' }).click();
@@ -350,7 +356,7 @@ test('tutor asks, checks the answer and gives hints', async ({ page }) => {
 test('concept map topics lead to the other tools', async ({ page }) => {
   await setUp(page);
   await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
-  await page.getByRole('tab', { name: 'Concept map' }).click();
+  await openTool(page, 'Concept map');
   await page.getByRole('button', { name: 'Map the topics' }).click();
   const node = page.locator('.node').first();
   await node.click();
@@ -395,7 +401,7 @@ test('briefs cover each chosen file, cite their pages, and are saved', async ({ 
   ]);
   await expect(page.getByText('2 slides', { exact: false })).toBeVisible();
   await expect(page.getByText('2 pages', { exact: false })).toBeVisible();
-  await page.getByRole('tab', { name: 'Briefs' }).click();
+  await openTool(page, 'Briefs');
   await expect(page.getByRole('checkbox', { name: 'lecture4.pdf' })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'slides.pptx' })).toBeChecked();
   await page.getByLabel('Length').selectOption('short');
@@ -414,7 +420,7 @@ test('briefs cover each chosen file, cite their pages, and are saved', async ({ 
 test('deadlines are found, edited, and exported to a calendar', async ({ page }) => {
   await setUp(page);
   await addFiles(page, [{ name: 'syllabus.docx', buffer: buf(syllabus) }]);
-  await page.getByRole('tab', { name: 'Deadlines' }).click();
+  await openTool(page, 'Deadlines');
   await page.getByRole('button', { name: 'Find deadlines' }).click();
   await expect(page.getByLabel('Date for Midterm exam')).toHaveValue('2026-11-03');
   await expect(page.getByText('50%')).toBeVisible();
@@ -575,15 +581,66 @@ test('chat declines to do graded work and offers study help instead', async ({ p
   await expect(page.locator('.msg.ai').last().locator('.verdict')).toHaveCount(0);
   // "Quiz me on it" opens a tutor session.
   await msg.getByRole('button', { name: 'Quiz me on it' }).click();
-  await expect(page.getByRole('tab', { name: 'Tutor' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: 'More tools: Tutor' })).toBeVisible();
 });
+
+for (const tag of ['', ' @phone']) {
+  test(`three main tabs, every other tool in the drawer, and samples in the menu${tag}`, async ({ page }) => {
+    const api: string[] = [];
+    await setUp(page);
+    await addFiles(page, [{ name: 'lecture4.pdf', buffer: buf(lecture), mimeType: 'application/pdf' }]);
+    await expect(page.getByText('2 pages', { exact: false })).toBeVisible();
+    if (tag) await page.getByRole('button', { name: 'Done' }).click();
+    const tabs = page.getByRole('tablist', { name: 'Study tools' }).getByRole('tab');
+    // What is on screen (hidden labels for the other screen size are left out).
+    expect((await tabs.filter({ visible: true }).allInnerTexts()).map((t) => t.trim())).toEqual(tag ? ['Files', 'Chat', 'Cards', 'Quizzes'] : ['Cited chat', 'Flashcards', 'Quizzes']);
+    // Every tab and the More tools button are fully on screen, with no sideways scrolling.
+    const width = page.viewportSize()!.width;
+    for (const el of [...(await tabs.filter({ visible: true }).all()), page.getByRole('button', { name: /^More tools/ })]) {
+      const box = (await el.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }
+    const overflow = () => page.locator('.tools').evaluate((t) => [t, t.querySelector('.tablist')!].map((e) => e.scrollWidth - e.clientWidth));
+    expect(await overflow()).toEqual([0, 0]);
+    // With a source open beside the chat the study area narrows; every tab must still fit.
+    await page.getByLabel('Ask about your material').fill('What is escape velocity?');
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Open source 1' }).click();
+    if (!tag) expect(await overflow()).toEqual([0, 0]);
+    await page.keyboard.press('Escape');
+
+    // The drawer lists every other tool, and the timer.
+    await page.getByRole('button', { name: /^More tools/ }).click();
+    const drawer = page.getByRole('dialog', { name: 'More tools' });
+    for (const name of ['Tutor', 'Concept map', 'Briefs', 'Deadlines']) await expect(drawer.getByRole('button', { name: new RegExp('^' + name) })).toBeVisible();
+    await expect(drawer.getByRole('heading', { name: 'Focus timer' })).toBeVisible();
+    // A running timer shows its countdown in the top bar, which reopens the drawer.
+    await drawer.getByRole('button', { name: 'Start' }).click();
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
+    await page.getByRole('button', { name: /^Focus timer, Focus, 2\d:\d\d left/ }).click();
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole('button', { name: 'Pause' }).click();
+    await drawer.getByRole('button', { name: /^Deadlines/ }).click();
+    await expect(page.getByRole('button', { name: 'More tools: Deadlines' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Find deadlines' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Focus timer/ })).toHaveCount(0);
+
+    // Samples open from the workspace menu, with no request to the API.
+    page.on('request', (r) => r.url().includes('/api/') && api.push(r.url()));
+    await page.getByRole('button', { name: 'Cubicle and app settings' }).click();
+    await page.getByRole('menuitem', { name: SAMPLES[0].label }).click();
+    await expect(page.getByLabel('Cubicle', { exact: true }).locator('option:checked')).toHaveText(SAMPLES[0].name);
+    expect(api).toEqual([]);
+  });
+}
 
 test('the focus timer starts at its full length even after the page sat idle', async ({ page }) => {
   // A controllable clock: let the timer sit paused for a while, as on the live site, then press Start.
   await page.clock.install();
   await setUp(page);
   const face = page.locator('.timer-face');
-  await page.getByRole('button', { name: /Focus timer/ }).click();
+  await page.getByRole('button', { name: /^More tools/ }).click();
   await expect(face).toHaveText('25:00');
   // Pause the clock so no tick can correct the display before it is read.
   await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 1000));
@@ -669,7 +726,7 @@ for (const sample of SAMPLES) {
     expect(new Set(await page.locator('ul.list .level').allTextContents())).toEqual(new Set(['Difficulty: Easy', 'Difficulty: Medium', 'Difficulty: Hard']));
     await page.getByRole('tab', { name: 'Quiz' }).click();
     await expect(page.getByText('8 questions · not taken yet')).toBeVisible();
-    await page.getByRole('tab', { name: 'Concept map' }).click();
+    await openTool(page, 'Concept map');
     expect(await page.locator('.node').count()).toBeGreaterThanOrEqual(4);
 
     // Opening it again goes to the same cubicle instead of a second copy.

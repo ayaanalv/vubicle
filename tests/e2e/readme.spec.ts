@@ -118,7 +118,8 @@ test('readme screenshots', async ({ page }) => {
   await shot(page, 'quiz');
 
   // Tutor, after one answer.
-  await page.getByRole('tab', { name: 'Tutor' }).click();
+  await page.getByRole('button', { name: /^More tools/ }).click();
+  await page.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: /^Tutor/ }).click();
   await page.getByLabel('Topic (optional)').fill('escape velocity');
   await page.getByRole('button', { name: 'Start a session' }).click();
   await expect(page.locator('.msg.ai')).toBeVisible(AI);
@@ -128,14 +129,16 @@ test('readme screenshots', async ({ page }) => {
   await shot(page, 'tutor');
 
   // Concept map with a topic picked.
-  await page.getByRole('tab', { name: 'Concept map' }).click();
+  await page.getByRole('button', { name: /^More tools/ }).click();
+  await page.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: /^Concept map/ }).click();
   await page.getByRole('button', { name: 'Map the topics' }).click();
   await expect(page.locator('.node').first()).toBeVisible(AI);
   await page.locator('.node').nth(1).click();
   await shot(page, 'concept-map');
 
   // Deadlines from the course outline.
-  await page.getByRole('tab', { name: 'Deadlines' }).click();
+  await page.getByRole('button', { name: /^More tools/ }).click();
+  await page.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: /^Deadlines/ }).click();
   await page.getByLabel('Syllabus file').selectOption({ label: 'PHYS1080-Course-Outline.docx' });
   await page.getByRole('button', { name: 'Find deadlines' }).click();
   await expect(page.locator('tbody tr').first()).toBeVisible(AI);

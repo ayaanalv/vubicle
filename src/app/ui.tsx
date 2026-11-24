@@ -3,7 +3,7 @@ import { Clock } from 'lucide-react';
 import { useLine, formatWait, type Waiting } from './api';
 
 /** A native <dialog>: focus is trapped and Escape closes it without extra code. */
-export function Dialog({ open, onClose, label, children }: { open: boolean; onClose: () => void; label: string; children: ReactNode }) {
+export function Dialog({ open, onClose, label, children, className }: { open: boolean; onClose: () => void; label: string; children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -12,7 +12,7 @@ export function Dialog({ open, onClose, label, children }: { open: boolean; onCl
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} aria-label={label} onClose={onClose} onCancel={onClose}>
+    <dialog ref={ref} className={className} aria-label={label} onClose={onClose} onCancel={onClose}>
       {open && children}
     </dialog>
   );

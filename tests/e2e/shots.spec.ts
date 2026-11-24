@@ -45,16 +45,18 @@ for (const [name, vp, scheme] of [['desk', { width: 1440, height: 900 }, 'light'
     await page.getByRole('button', { name: 'Write a quiz' }).click();
     await page.waitForTimeout(900);
     await shot('7-quiz');
-    await page.getByRole('tab', { name: 'Concept map' }).click();
+    await page.getByRole('button', { name: /^More tools/ }).click();
+    await page.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: /^Concept map/ }).click();
     await page.getByRole('button', { name: 'Map the topics' }).click();
     await page.waitForTimeout(900);
     await page.locator('.node').first().click();
     await shot('8-map');
-    await page.getByRole('tab', { name: 'Deadlines' }).click();
+    await page.getByRole('button', { name: /^More tools/ }).click();
+    await page.getByRole('dialog', { name: 'More tools' }).getByRole('button', { name: /^Deadlines/ }).click();
     await page.getByRole('button', { name: 'Find deadlines' }).click();
     await page.waitForTimeout(900);
     await shot('9-deadlines');
-    await page.getByRole('button', { name: /Focus timer/ }).click();
+    await page.getByRole('button', { name: /^More tools/ }).click();
     await shot('10-timer');
   });
 }

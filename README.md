@@ -95,7 +95,7 @@ Point it at a syllabus and it pulls out exams, assignments and their **weights**
 
 ### And
 
-- **Focus timer:** a Pomodoro timer in the top bar (25/5, with a long break every fourth round) that survives a page reload.
+- **Focus timer:** a Pomodoro timer in the More tools panel (25/5, with a long break every fourth round) that survives a page reload. While it runs, the countdown shows in the top bar.
 - **Backups:** export a cubicle, with its original files, to a `.vubicle` file and import it on another computer. Deleting a cubicle offers to export a backup first.
 - **Light and dark themes** that follow the device or a manual choice.
 - **Phones:** the same tools, rearranged for a narrow screen.
