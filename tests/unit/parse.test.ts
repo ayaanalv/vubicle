@@ -128,6 +128,22 @@ describe('parsePdf', () => {
     await parsePdf('l.pdf', makePdf([['Planets move in ellipses around the Sun.'], ['Escape velocity is about 11.2 km/s.']]), pdfjs, undefined, async () => ((called = true), new Map()));
     expect(called).toBe(false);
   });
+  it('skips diagram pages with little or no recognised text quietly in a normal lecture PDF', async () => {
+    // Pages 1, 2, 4 and 6 have text. 3 is a diagram with nothing readable, 5 gives stray marks, 7 has labels.
+    const recognised: Record<number, string> = { 3: '', 5: ' | ~ — . ', 7: 'Sun\nEarth  orbit' };
+    const pdf = makeScannedPdf([
+      ['Lecture 4: Orbits and gravitation'],
+      ['Kepler showed that planets move in elliptical orbits.'],
+      scan,
+      ['Escape velocity is about 11.2 km per second from Earth.'],
+      scan,
+      ['Satellites in lower orbits move faster.'],
+      scan,
+    ]);
+    const { sections } = await parsePdf('lecture.pdf', pdf, pdfjs, undefined, async (_d, pages) => new Map(pages.map((p) => [p, recognised[p]])));
+    expect(sections.map((s) => s.label)).toEqual(['p. 1', 'p. 2', 'p. 4', 'p. 6', 'p. 7']);
+    expect(sections.at(-1)!.text).toBe('Sun\nEarth orbit');
+  });
   it('says plainly when text recognition finds nothing to read', async () => {
     await expect(parsePdf('blurry.pdf', makeScannedPdf([scan, scan]), pdfjs, undefined, async () => new Map([[1, ''], [2, ' ~ ']]))).rejects.toThrow(/text recognition found little or no text/);
   });

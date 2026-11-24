@@ -234,6 +234,9 @@ interface PdfJs {
  */
 export type ScanReader = (doc: unknown, pages: number[]) => Promise<Map<number, string>>;
 
+/** At least two words of two or more letters: a diagram's labels ("Sun", "Earth") count, stray marks don't. */
+const hasWords = (s: string) => (s.match(/\p{L}{2,}/gu) ?? []).length >= 2;
+
 const IMAGE_OPS = ['paintImageXObject', 'paintInlineImageXObject', 'paintImageMaskXObject', 'paintImageXObjectRepeat', 'paintInlineImageXObjectGroup', 'paintImageMaskXObjectGroup', 'paintImageMaskXObjectRepeat'];
 
 export async function parsePdf(
@@ -280,7 +283,9 @@ export async function parsePdf(
     const read = await readScanned(doc, scanned);
     for (const [page, raw] of read) {
       const text = tidy(raw.replace(/(\w)-\n(\w)/g, '$1$2'));
-      if (text) sections.push({ label: `p. ${page}`, page, text });
+      // A diagram or photo often yields nothing or a few stray marks. Skip such pages quietly; whether
+      // the file as a whole has enough text is decided below.
+      if (hasWords(text)) sections.push({ label: `p. ${page}`, page, text });
     }
     sections = sections.sort((a, b) => (a.page ?? 0) - (b.page ?? 0));
   }
