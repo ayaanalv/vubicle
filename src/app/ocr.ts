@@ -59,21 +59,32 @@ export async function readScannedPages(doc: unknown, pages: number[], signal: Ab
   onStep({ preparing: true, page: 0, total });
   const base = `${location.origin}/ocr`;
   let worker: import('tesseract.js').Worker;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
+    // A missing worker file comes back as a web page, and Tesseract then waits forever. Check it first.
+    const head = await orCancel(fetch(`${base}/worker.min.js`, { method: 'HEAD' }), signal);
+    if (!head.ok || !/javascript/.test(head.headers.get('content-type') ?? '')) throw new Error(`OCR worker not found (${head.status} ${head.headers.get('content-type')})`);
     const tesseract = await orCancel(import('tesseract.js'), signal);
+    // About 4 MB on first use. Three minutes covers a slow connection; past that, say so instead of hanging.
+    const tooSlow = new Promise<never>((_, reject) => (timer = setTimeout(() => reject(new Error('OCR took too long to start')), 180_000)));
     worker = await orCancel(
-      tesseract.createWorker('eng', tesseract.OEM.LSTM_ONLY, {
-        workerPath: `${base}/worker.min.js`,
-        corePath: base,
-        langPath: base,
-        workerBlobURL: false,
-      }),
+      Promise.race([
+        tesseract.createWorker('eng', tesseract.OEM.LSTM_ONLY, {
+          workerPath: `${base}/worker.min.js`,
+          corePath: base,
+          langPath: base,
+          workerBlobURL: false,
+        }),
+        tooSlow,
+      ]),
       signal,
     );
   } catch (e) {
     if (e instanceof Cancelled) throw e;
     console.error(e);
     throw new FileError('This PDF is scanned, and the text recognition tools could not be loaded. Check your connection and add the file again.');
+  } finally {
+    clearTimeout(timer);
   }
   const stop = () => void worker.terminate();
   signal.addEventListener('abort', stop, { once: true });

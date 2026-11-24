@@ -153,7 +153,8 @@ test('a scanned PDF is read in the browser page by page, and answers cite the ri
   ]);
   await addFiles(page, [{ name: 'scanned-notes.pdf', buffer: buf(pdf), mimeType: 'application/pdf' }]);
   const list = page.getByRole('list', { name: 'Files in this cubicle' });
-  await expect(list.getByText(/Reading scanned page \d of 2|getting text recognition ready/)).toBeVisible();
+  // The first PDF on a fresh test server waits for the PDF reader to be prepared, which can pass 5 seconds.
+  await expect(list.getByText(/Reading scanned page \d of 2|getting text recognition ready/)).toBeVisible({ timeout: 30_000 });
   await expect(list.getByRole('button', { name: 'Cancel' })).toBeVisible();
   await expect(list.getByText('3 pages', { exact: false })).toBeVisible({ timeout: 90_000 });
 
@@ -179,6 +180,16 @@ test('a normal PDF never loads the text recognition files', async ({ page }) => 
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Open source 1' })).toBeVisible();
   expect(ocr).toEqual([]);
+});
+
+test('a scanned PDF shows an error, not endless loading, when the OCR files are missing', async ({ page }) => {
+  // What CI once served: the site's own page in place of the worker script.
+  await page.route('**/ocr/worker.min.js', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Vubicle</title>' }));
+  await setUp(page);
+  const pdf = makeScannedPdf([await scanOf(page, ['Escape velocity is the minimum speed needed', 'to leave a body without further thrust.'])]);
+  await addFiles(page, [{ name: 'scan.pdf', buffer: buf(pdf), mimeType: 'application/pdf' }]);
+  const list = page.getByRole('list', { name: 'Files in this cubicle' });
+  await expect(list.getByText(/text recognition tools could not be loaded/)).toBeVisible({ timeout: 30_000 });
 });
 
 test('reading a scanned PDF can be cancelled', async ({ page }) => {
@@ -727,7 +738,8 @@ for (const sample of SAMPLES) {
     await page.getByRole('tab', { name: 'Quiz' }).click();
     await expect(page.getByText('8 questions · not taken yet')).toBeVisible();
     await openTool(page, 'Concept map');
-    expect(await page.locator('.node').count()).toBeGreaterThanOrEqual(4);
+    // The map draws after the tool opens; wait for its topics instead of counting at once.
+    await expect.poll(() => page.locator('.node').count()).toBeGreaterThanOrEqual(4);
 
     // Opening it again goes to the same cubicle instead of a second copy.
     await page.goto(`/app/?sample=${sample.id}`);

@@ -61,7 +61,9 @@ function ocrFiles(): Plugin {
   ];
   return {
     name: 'vubicle-ocr-files',
-    buildStart() {
+    // In `config`, the earliest hook: the dev server lists public/ when it starts and serves its page
+    // instead of any file added later, so copying in buildStart left a fresh checkout without them.
+    config() {
       const out = resolve(import.meta.dirname, 'public/ocr');
       mkdirSync(out, { recursive: true });
       for (const [from, to] of files) copyFileSync(resolve(import.meta.dirname, from), resolve(out, to));
